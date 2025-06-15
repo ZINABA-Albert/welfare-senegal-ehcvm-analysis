@@ -20,7 +20,7 @@ Ce projet a pour objectifs principaux :
 
 Les données utilisées proviennent des éditions 2018 et 2021 de l'**Enquête Harmonisée sur les Conditions de Vie des Ménages (EHCVM)** pour le Sénégal, généralement collectées par l'Agence Nationale de la Statistique et de la Démographie (ANSD) du Sénégal.
 
-**⚠️ Important : Les fichiers de données brutes ne sont pas inclus dans ce dépôt** pour des raisons de taille, de confidentialité ou de droits d'accès. Pour reproduire l'analyse, vous devrez obtenir les bases de données EHCVM 2018 et 2021 (généralement au format `.dta` ou `.sav`) auprès de leur source officielle (ex: ANSD Sénégal ou plateformes de données de recherche).
+**⚠️ Important : Les fichiers de données brutes ne sont pas inclus dans ce dépôt** pour des raisons de taille, de confidentialité ou de droits d'accès. Pour reproduire l'analyse, vous devrez obtenir les bases de données EHCVM 2018 et 2021 (généralement au format `.dta` ou `.sav`) auprès de leur source officielle ANSD Sénégal.
 
 ---
 
