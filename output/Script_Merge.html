@@ -1,0 +1,2487 @@
+Projet_Merge_Bases
+Albert ZINABA
+2025-04-02
+1 Importation et analyse des bases de données
+1.1 Importation des bases de données
+1.2 Analyse des bases de données
+1.3 Visualisations des observations des deux bases
+2 Traitement des bases de données
+2.1 Traitement des variables communes mais avec des labels differents dans les deux bases
+2.1.1 * Traitement de la variable “zae”
+2.1.2 * Traitement de la variable “hnation”
+2.1.3 * Traitement de la variable “hdiploma”
+2.1.4 Traitement de la variable “hactivi7j”
+2.1.5 * Traitement de la variable “hcsp”
+2.1.6 * Traitement de la variable “hbranch”
+2.1.7 * Traitement de la variable “region”
+3 Fusion des deux bases
+3.1 Quelques statistiques sur la base final
+3.2 Sauvegarde de la base final
+L’Enquête Harmonisée sur les Conditions de Vie des Ménages (EHCVM) est une initiative de l’UEMOA visant à améliorer la comparabilité des indicateurs de pauvreté et des conditions de vie dans ses États membres. Le Sénégal a participé à cette enquête à travers deux éditions, en 2018 et en 2021. Dans ce travail il nous ait demandé de faire la fusion des bases welfares presentes dan les deux années.Pour ce faire, il est essentiel d’effectuer un travail préalable de nettoyage, de recodage et d’harmonisation avant leur fusion. Ce processus garantira la cohérence et la comparabilité des variables pour la fusion.
+
+Importations et Chargement des packages
+
+packages <- c("readr","cardx","haven","utils","dplyr","gtsummary","gt" , "DataExplorer","labelled","survey")
+
+
+for (package in packages) {
+  if (!requireNamespace(package, quietly = TRUE)) {   # Vérifie si le package n'est pas encore installé
+    install.packages(package)
+  }
+  library(package, character.only = TRUE) # nom du package en nom ou chaine de caractère ()
+}
+1 Importation et analyse des bases de données
+Le travail coonsiste a faire la merge des bases de donnée welfare de l’EHCVM 2018 et 2021. Mais avant de faire le merge il est essentiel de passer au netoyage des deux base de données. Cet netoyage part du recodage des variables, la labelisation de certaines variables en tout a l’harmonisation des deux base de données.
+
+1.1 Importation des bases de données
+#Nous importons les bases de données avec la fonction read_dta du package haven
+
+data_welf2018 <- haven::read_dta("../Donnees/ehcvm_welfare_SEN2018.dta") #base welfare 2018
+data_welf2021 <- haven::read_dta("../Donnees/ehcvm_welfare_sen2021.dta") #base welfare 2021
+1.2 Analyse des bases de données
+###Structure de la base de données des deux bases
+
+Nous affichons la structure des bases afin d’avoir une vue globale des deux bases
+
+utils::str(data_welf2018) #Structure de la base 2018
+## tibble [7,156 × 35] (S3: tbl_df/tbl/data.frame)
+##  $ country  : chr [1:7156] "SEN" "SEN" "SEN" "SEN" ...
+##   ..- attr(*, "label")= chr "Pays"
+##   ..- attr(*, "format.stata")= chr "%9s"
+##  $ year     : num [1:7156] 2018 2018 2018 2018 2018 ...
+##   ..- attr(*, "label")= chr "Annee enquete"
+##   ..- attr(*, "format.stata")= chr "%9.0g"
+##  $ hhid     : num [1:7156] 1001 1002 1003 2001 2002 ...
+##   ..- attr(*, "label")= chr "Idenfiant menage"
+##   ..- attr(*, "format.stata")= chr "%9.0g"
+##  $ grappe   : num [1:7156] 1 1 1 2 2 2 2 2 2 2 ...
+##   ..- attr(*, "label")= chr "Numero grappe"
+##   ..- attr(*, "format.stata")= chr "%6.2f"
+##  $ menage   : num [1:7156] 1 2 3 1 2 3 4 5 6 7 ...
+##   ..- attr(*, "label")= chr "Numero menage"
+##   ..- attr(*, "format.stata")= chr "%9.0g"
+##  $ vague    : num [1:7156] 1 1 1 2 2 2 2 2 2 2 ...
+##   ..- attr(*, "label")= chr "Vague"
+##   ..- attr(*, "format.stata")= chr "%6.2f"
+##  $ zae      : num [1:7156] 1 1 1 1 1 1 1 1 1 1 ...
+##   ..- attr(*, "label")= chr "Zone agroecologique"
+##   ..- attr(*, "format.stata")= chr "%9.0g"
+##  $ region   : dbl+lbl [1:7156] 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,...
+##    ..@ label       : chr "Region residence"
+##    ..@ format.stata: chr "%6.2f"
+##    ..@ labels      : Named num [1:14] 1 2 3 4 5 6 7 8 9 10 ...
+##    .. ..- attr(*, "names")= chr [1:14] "DAKAR" "ZIGUINCHOR" "DIOURBEL" "SAINT-LOUIS" ...
+##  $ milieu   : dbl+lbl [1:7156] 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,...
+##    ..@ label       : chr "Milieu residence"
+##    ..@ format.stata: chr "%6.2f"
+##    ..@ labels      : Named num [1:2] 1 2
+##    .. ..- attr(*, "names")= chr [1:2] "Urbain" "Rural"
+##  $ hhweight : num [1:7156] 1750 1750 1750 266 266 ...
+##   ..- attr(*, "label")= chr "Ponderation menage"
+##   ..- attr(*, "format.stata")= chr "%9.0g"
+##  $ hhsize   : num [1:7156] 2 2 1 10 6 4 3 2 3 1 ...
+##   ..- attr(*, "label")= chr "Taille menage"
+##   ..- attr(*, "format.stata")= chr "%6.2f"
+##  $ eqadu1   : num [1:7156] 1.32 1.45 1 7.66 4.28 ...
+##   ..- attr(*, "label")= chr "Nbr adultes-equiv. FAO"
+##   ..- attr(*, "format.stata")= chr "%9.0g"
+##  $ eqadu2   : num [1:7156] 1.61 1.61 1 5.54 3.25 ...
+##   ..- attr(*, "label")= chr "Nbr adultes-equiv. alt."
+##   ..- attr(*, "format.stata")= chr "%9.0g"
+##  $ hgender  : dbl+lbl [1:7156] 2, 1, 1, 1, 1, 2, 1, 2, 2, 2, 1, 1, 2, 1, 2, 1, 1, 1,...
+##    ..@ label       : chr "Genre du CM"
+##    ..@ format.stata: chr "%6.2f"
+##    ..@ labels      : Named num [1:2] 1 2
+##    .. ..- attr(*, "names")= chr [1:2] "Masculin" "Féminin"
+##  $ hage     : num [1:7156] 59 59 27 85 40 68 31 54 67 42 ...
+##   ..- attr(*, "label")= chr "Age du CM"
+##   ..- attr(*, "format.stata")= chr "%9.0g"
+##  $ hmstat   : dbl+lbl [1:7156] 1, 2, 1, 2, 2, 5, 1, 2, 5, 1, 2, 2, 2, 1, 2, 2, 2, 6,...
+##    ..@ label       : chr "Situation famille du CM"
+##    ..@ format.stata: chr "%6.2f"
+##    ..@ labels      : Named num [1:7] 1 2 3 4 5 6 7
+##    .. ..- attr(*, "names")= chr [1:7] "Célibataire" "Marié(e) monogame" "Marié(e) polygame" "Union libre" ...
+##  $ hreligion: dbl+lbl [1:7156] 1, 2, 2, 1, 1, 1, 2, 1, 1, 2, 1, 1, 1, 1, 1, 1, 1, 1,...
+##    ..@ label       : chr "Religion du CM"
+##    ..@ format.stata: chr "%6.2f"
+##    ..@ labels      : Named num [1:5] 1 2 3 4 5
+##    .. ..- attr(*, "names")= chr [1:5] "Musulman" "Chrétien" "Animiste" "Autre Réligion" ...
+##  $ hnation  : dbl+lbl [1:7156]  7, 12,  7,  7,  7,  7, 11,  7,  7,  7,  7,  7,  7, 1...
+##    ..@ label       : chr "Nationalite du CM"
+##    ..@ format.stata: chr "%6.2f"
+##    ..@ labels      : Named num [1:12] 1 2 3 4 5 6 7 8 9 10 ...
+##    .. ..- attr(*, "names")= chr [1:12] "Benin" "Burkina Faso" "Côte d'Ivoire" "Guinée Bissau" ...
+##  $ halfab   : dbl+lbl [1:7156] 1, 1, 1, 1, 0, 1, 1, 0, 1, 1, 0, 0, 0, 0, 1, 1, 1, 0,...
+##    ..@ label       : chr "Alphabetisation du CM"
+##    ..@ format.stata: chr "%9.0g"
+##    ..@ labels      : Named num [1:2] 0 1
+##    .. ..- attr(*, "names")= chr [1:2] "Non" "Oui"
+##  $ heduc    : dbl+lbl [1:7156] 3, 9, 9, 3, 1, 1, 9, 1, 3, 4, 3, 1, 1, 1, 1, 9, 9, 1,...
+##    ..@ label       : chr "Education du CM"
+##    ..@ format.stata: chr "%15.0g"
+##    ..@ labels      : Named num [1:9] 1 2 3 4 5 6 7 8 9
+##    .. ..- attr(*, "names")= chr [1:9] "Aucun" "Maternelle" "Primaire" "Second. gl 1" ...
+##  $ hdiploma : dbl+lbl [1:7156]  1,  6, 10,  0,  0,  0, 10,  0,  0,  1,  0,  0,  0,  ...
+##    ..@ label       : chr "Diplome du CM"
+##    ..@ format.stata: chr "%6.2f"
+##    ..@ labels      : Named num [1:11] 0 1 2 3 4 5 6 7 8 9 ...
+##    .. ..- attr(*, "names")= chr [1:11] "Aucun" "CEP/CFEE" "BEPC/BFEM" "CAP" ...
+##  $ hhandig  : dbl+lbl [1:7156] 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,...
+##    ..@ label       : chr "Handicap majeur CM"
+##    ..@ format.stata: chr "%9.0g"
+##    ..@ labels      : Named num [1:2] 0 1
+##    .. ..- attr(*, "names")= chr [1:2] "Non" "Oui"
+##  $ hactiv7j : dbl+lbl [1:7156] 1, 1, 1, 5, 1, 5, 1, 1, 5, 1, 1, 1, 1, 1, 1, 1, 1, 1,...
+##    ..@ label       : chr "Activite 7 jours du CM"
+##    ..@ format.stata: chr "%19.0g"
+##    ..@ labels      : Named num [1:6] 1 2 3 4 5 6
+##    .. ..- attr(*, "names")= chr [1:6] "Occupe" "Chomeur" "TF cherchant emploi" "TF cherchant pas" ...
+##  $ hactiv12m: dbl+lbl [1:7156] 1, 1, 1, 3, 1, 3, 1, 1, 3, 1, 1, 1, 1, 1, 1, 1, 1, 1,...
+##    ..@ label       : chr "Activite 12 mois du CM"
+##    ..@ format.stata: chr "%14.0g"
+##    ..@ labels      : Named num [1:4] 1 2 3 4
+##    .. ..- attr(*, "names")= chr [1:4] "Occupe" "Trav. fam." "Non occupe" "Moins de 5 ans"
+##  $ hbranch  : dbl+lbl [1:7156]  6,  6, 11, NA,  6, NA,  9, 11, NA,  6,  7,  8,  6, 1...
+##    ..@ label       : chr "Branche activite du CM"
+##    ..@ format.stata: chr "%16.0g"
+##    ..@ labels      : Named num [1:11] 1 2 3 4 5 6 7 8 9 10 ...
+##    .. ..- attr(*, "names")= chr [1:11] "Agriculture" "Elevage/peche" "Indust. extr." "Autr. indust." ...
+##  $ hsectins : dbl+lbl [1:7156]  3,  3,  1, NA,  3, NA,  1,  5, NA,  3,  3,  3,  3,  ...
+##    ..@ label       : chr "Secteur instit. du CM"
+##    ..@ format.stata: chr "%6.2f"
+##    ..@ labels      : Named num [1:6] 1 2 3 4 5 6
+##    .. ..- attr(*, "names")= chr [1:6] "Etat/Collectivités locales" "Entreprise publique/ parapublique" "Entreprise Privée" "Entreprise associative" ...
+##  $ hcsp     : dbl+lbl [1:7156]  4,  1,  7, NA,  4, NA,  6,  5, NA,  9,  3,  4,  9,  ...
+##    ..@ label       : chr "CSP du CM"
+##    ..@ format.stata: chr "%6.2f"
+##    ..@ labels      : Named num [1:10] 1 2 3 4 5 6 7 8 9 10
+##    .. ..- attr(*, "names")= chr [1:10] "Cadre supérieur" "Cadre moyen/agent de maîtrise" "Ouvrier ou employé qualifié" "Ouvrier ou employé non qualifié" ...
+##  $ dali     : num [1:7156] 1978488 1886313 387989 6568518 2362250 ...
+##   ..- attr(*, "label")= chr "Conso annuelle alim. menage"
+##   ..- attr(*, "format.stata")= chr "%9.0g"
+##  $ dnal     : num [1:7156] 13139233 8894985 5055663 4889539 3930703 ...
+##   ..- attr(*, "label")= chr "Conso annuelle non alim. menage"
+##   ..- attr(*, "format.stata")= chr "%9.0g"
+##  $ dtot     : num [1:7156] 15117721 10781298 5443652 11458057 6292954 ...
+##   ..- attr(*, "label")= chr "Conso annuelle totale menage"
+##   ..- attr(*, "format.stata")= chr "%9.0g"
+##  $ pcexp    : num [1:7156] 6440507 4593088 4638249 976281 893649 ...
+##   ..- attr(*, "label")= chr "Indicateur de bien-être"
+##   ..- attr(*, "format.stata")= chr "%9.0g"
+##  $ zzae     : num [1:7156] 391340 391340 391340 391340 391340 ...
+##   ..- attr(*, "format.stata")= chr "%9.0g"
+##  $ zref     : num [1:7156] 333441 333441 333441 333441 333441 ...
+##   ..- attr(*, "label")= chr "Seuil pauvrete national"
+##   ..- attr(*, "format.stata")= chr "%9.0g"
+##  $ def_spa  : num [1:7156] 1.17 1.17 1.17 1.17 1.17 ...
+##   ..- attr(*, "label")= chr "Deflateur spatial"
+##   ..- attr(*, "format.stata")= chr "%9.0g"
+##  $ def_temp : num [1:7156] 1.015 1.012 1.015 0.992 0.992 ...
+##   ..- attr(*, "label")= chr "Deflateur temporel"
+##   ..- attr(*, "format.stata")= chr "%9.0g"
+utils::str(data_welf2021) #Structure de la base 2021
+## tibble [7,120 × 47] (S3: tbl_df/tbl/data.frame)
+##  $ grappe              : num [1:7120] 2 2 2 2 2 2 2 2 2 2 ...
+##   ..- attr(*, "label")= chr "grappe"
+##   ..- attr(*, "format.stata")= chr "%8.0g"
+##  $ menage              : num [1:7120] 5 15 3 13 8 16 7 4 1 12 ...
+##   ..- attr(*, "label")= chr "Identifiant du ménage"
+##   ..- attr(*, "format.stata")= chr "%8.0g"
+##  $ country             : chr [1:7120] "SEN" "SEN" "SEN" "SEN" ...
+##   ..- attr(*, "label")= chr "Pays"
+##   ..- attr(*, "format.stata")= chr "%3s"
+##  $ year                : num [1:7120] 2021 2021 2021 2021 2021 ...
+##   ..- attr(*, "label")= chr "Annee enquete"
+##   ..- attr(*, "format.stata")= chr "%8.0g"
+##  $ hhid                : num [1:7120] 205 215 203 213 208 216 207 204 201 212 ...
+##   ..- attr(*, "label")= chr "Idenfiant menage"
+##   ..- attr(*, "format.stata")= chr "%12.0g"
+##  $ vague               : num [1:7120] 2 2 2 2 2 2 2 2 2 2 ...
+##   ..- attr(*, "label")= chr "Vague"
+##   ..- attr(*, "format.stata")= chr "%8.0g"
+##  $ month               : Date[1:7120], format: "2022-05-01" "2022-05-01" ...
+##  $ zae                 : dbl+lbl [1:7120] 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 1...
+##    ..@ label       : chr "Zone agroecologique"
+##    ..@ format.stata: chr "%8.0g"
+##    ..@ labels      : Named num [1:6] 1 3 5 7 9 11
+##    .. ..- attr(*, "names")= chr [1:6] "Kédougou" "Saint-Louis-Matam" "Thies-Diourbel-Louga" "Kaolack-Fatick-Kaffrine" ...
+##  $ region              : dbl+lbl [1:7120] 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,...
+##    ..@ label       : chr "Region residence"
+##    ..@ format.stata: chr "%8.0g"
+##    ..@ labels      : Named num [1:14] 1 2 3 4 5 6 7 8 9 10 ...
+##    .. ..- attr(*, "names")= chr [1:14] "dakar" "ziguinchor" "diourbel" "SAINT-LOUIS" ...
+##  $ milieu              : dbl+lbl [1:7120] 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,...
+##    ..@ label       : chr "Milieu residence"
+##    ..@ format.stata: chr "%8.0g"
+##    ..@ labels      : Named num [1:2] 1 2
+##    .. ..- attr(*, "names")= chr [1:2] "Urbain" "Rural"
+##  $ hhweight            : num [1:7120] 386 386 386 386 290 ...
+##   ..- attr(*, "label")= chr "Ponderation menage"
+##   ..- attr(*, "format.stata")= chr "%12.0g"
+##  $ hhsize              : num [1:7120] 3 2 3 5 1 5 1 3 9 6 ...
+##   ..- attr(*, "label")= chr "Taille menage"
+##   ..- attr(*, "format.stata")= chr "%8.0g"
+##  $ eqadu1              : num [1:7120] 2.28 1.66 2.82 4 0.79 ...
+##   ..- attr(*, "label")= chr "Nbr adultes-equiv. FAO"
+##   ..- attr(*, "format.stata")= chr "%12.0g"
+##  $ eqadu2              : num [1:7120] 2.2 1.61 1.87 3.17 1 ...
+##   ..- attr(*, "label")= chr "Nbr adultes-equiv. alt."
+##   ..- attr(*, "format.stata")= chr "%9.0g"
+##  $ hgender             : dbl+lbl [1:7120] 2, 1, 2, 1, 1, 1, 2, 1, 1, 1, 1, 2, 1, 2, 1, 1, 1, 1,...
+##    ..@ label       : chr "Genre du CM"
+##    ..@ format.stata: chr "%8.0g"
+##    ..@ labels      : Named num [1:2] 1 2
+##    .. ..- attr(*, "names")= chr [1:2] "Masculin" "Féminin"
+##  $ hage                : num [1:7120] 33 42 47 56 54 45 46 34 88 51 ...
+##   ..- attr(*, "label")= chr "Age du CM"
+##   ..- attr(*, "format.stata")= chr "%8.0g"
+##  $ hmstat              : dbl+lbl [1:7120] 3, 1, 3, 2, 6, 2, 1, 1, 2, 2, 3, 5, 1, 5, 3, 2, 2, 1,...
+##    ..@ label       : chr "Situation famille du CM"
+##    ..@ format.stata: chr "%8.0g"
+##    ..@ labels      : Named num [1:7] 1 2 3 4 5 6 7
+##    .. ..- attr(*, "names")= chr [1:7] "Célibataire" "Marié(e) monogame" "Marié(e) polygame" "Union libre" ...
+##  $ hreligion           : dbl+lbl [1:7120] 1, 1, 1, 1, 1, 1, 2, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,...
+##    ..@ label       : chr "Religion du CM"
+##    ..@ format.stata: chr "%8.0g"
+##    ..@ labels      : Named num [1:5] 1 2 3 4 5
+##    .. ..- attr(*, "names")= chr [1:5] "Musulman" "Chrétien" "Animiste" "Autre Réligion" ...
+##  $ hnation             : dbl+lbl [1:7120] 13, 13, 13, 13, 13, 13, 13, 17, 13, 13, 13, 13, 13, 1...
+##    ..@ label       : chr "Nationalite du CM"
+##    ..@ format.stata: chr "%8.0g"
+##    ..@ labels      : Named num [1:17] 1 2 3 4 5 6 7 8 9 10 ...
+##    .. ..- attr(*, "names")= chr [1:17] "Bénin" "Burkina Faso" "Cape-vert" "Cote d'ivoire" ...
+##  $ hethnie             : dbl+lbl [1:7120]  2,  3,  6,  1,  1,  1,  5, NA,  8,  2,  1,  1,  1,  ...
+##    ..@ label       : chr "Ethnie du CM"
+##    ..@ format.stata: chr "%8.0g"
+##    ..@ labels      : Named num [1:13] 1 2 3 4 5 6 7 8 9 10 ...
+##    .. ..- attr(*, "names")= chr [1:13] "Wolof/Lébou" "Sérère" "Poular" "Soninké" ...
+##  $ halfa               : dbl+lbl [1:7120] 0, 1, 1, 1, 0, 1, 1, 1, 1, 0, 0, 1, 1, 0, 1, 1, 1, 1,...
+##    ..@ label       : chr "Alpha. lire/ecr. CM"
+##    ..@ format.stata: chr "%8.0g"
+##    ..@ labels      : Named num [1:2] 0 1
+##    .. ..- attr(*, "names")= chr [1:2] "Non" "Oui"
+##  $ halfa2              : dbl+lbl [1:7120] 0, 1, 1, 1, 0, 1, 1, 1, 1, 0, 0, 1, 1, 0, 1, 1, 1, 1,...
+##    ..@ label       : chr "Alpha. lire/ecr./comp. CM"
+##    ..@ format.stata: chr "%8.0g"
+##    ..@ labels      : Named num [1:2] 0 1
+##    .. ..- attr(*, "names")= chr [1:2] "Non" "Oui"
+##  $ heduc               : dbl+lbl [1:7120] 1, 9, 4, 3, 1, 9, 4, 9, 3, 1, 1, 3, 4, 3, 1, 4, 9, 9,...
+##    ..@ label       : chr "Education du CM"
+##    ..@ format.stata: chr "%8.0g"
+##    ..@ labels      : Named num [1:9] 1 2 3 4 5 6 7 8 9
+##    .. ..- attr(*, "names")= chr [1:9] "Aucun" "Maternelle" "Primaire" "Second. gl 1" ...
+##  $ hdiploma            : dbl+lbl [1:7120]  0,  7,  1,  1,  0,  6,  1, 10,  0,  0,  0,  0,  1,  ...
+##    ..@ label       : chr "Diplome du CM"
+##    ..@ format.stata: chr "%8.0g"
+##    ..@ labels      : Named num [1:11] 0 1 2 3 4 5 6 7 8 9 ...
+##    .. ..- attr(*, "names")= chr [1:11] "Aucun" "cepe" "bepc" "cap" ...
+##  $ hhandig             : dbl+lbl [1:7120] 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0,...
+##    ..@ label       : chr "Handicap majeur CM"
+##    ..@ format.stata: chr "%8.0g"
+##    ..@ labels      : Named num [1:2] 0 1
+##    .. ..- attr(*, "names")= chr [1:2] "Non" "Oui"
+##  $ hactiv7j            : dbl+lbl [1:7120] 1, 1, 1, 1, 1, 1, 1, 5, 1, 1, 1, 5, 5, 1, 1, 1, 1, 1,...
+##    ..@ label       : chr "Activite 7 jours du CM"
+##    ..@ format.stata: chr "%8.0g"
+##    ..@ labels      : Named num [1:6] 1 2 3 4 5 6
+##    .. ..- attr(*, "names")= chr [1:6] "Occupe" "TF cherchant emploi" "TF cherchant pas" "Chomeur" ...
+##  $ hactiv12m           : dbl+lbl [1:7120] 1, 1, 1, 1, 1, 1, 1, 3, 1, 1, 1, 3, 3, 1, 1, 1, 1, 1,...
+##    ..@ label       : chr "Activite 12 mois du CM"
+##    ..@ format.stata: chr "%8.0g"
+##    ..@ labels      : Named num [1:4] 1 2 3 4
+##    .. ..- attr(*, "names")= chr [1:4] "Occupe" "Trav. fam." "Non occupe" "Moins de 5 ans"
+##  $ hbranch             : dbl+lbl [1:7120] 11,  9, 11, 11, 11,  9,  6, NA,  2,  4,  6, NA, NA, 1...
+##    ..@ label       : chr "Branche activite du CM"
+##    ..@ format.stata: chr "%8.0g"
+##    ..@ labels      : Named num [1:11] 1 2 3 4 5 6 7 8 9 10 ...
+##    .. ..- attr(*, "names")= chr [1:11] "Agriculture" "Elevage/syl./peche" "Indust. extr." "Autr. indust." ...
+##  $ hsectins            : dbl+lbl [1:7120]  5,  3,  5,  3,  3,  2,  3, NA,  3,  3,  3, NA, NA,  ...
+##    ..@ label       : chr "Secteur instit. du CM"
+##    ..@ format.stata: chr "%8.0g"
+##    ..@ labels      : Named num [1:6] 1 2 3 4 5 6
+##    .. ..- attr(*, "names")= chr [1:6] "Etat/Collectivités locales" "Entreprise publique/ parapublique" "Entreprise Privée" "Entreprise associative" ...
+##  $ hcsp                : dbl+lbl [1:7120]  5,  3,  5,  4,  3,  3,  9, NA,  9,  9,  9, NA, NA,  ...
+##    ..@ label       : chr "CSP du CM"
+##    ..@ format.stata: chr "%8.0g"
+##    ..@ labels      : Named num [1:10] 1 2 3 4 5 6 7 8 9 10
+##    .. ..- attr(*, "names")= chr [1:10] "Cadre supérieur" "Cadre moyen/agent de maîtrise" "Ouvrier ou employé qualifié" "Ouvrier ou employé non qualifié" ...
+##  $ dali                : num [1:7120] 1357897 1330889 1510518 2759037 973303 ...
+##   ..- attr(*, "label")= chr "Conso annuelle alim. menage"
+##   ..- attr(*, "format.stata")= chr "%12.0g"
+##  $ dnal                : num [1:7120] 930976 476051 1887723 2087600 1573509 ...
+##   ..- attr(*, "label")= chr "Conso annuelle non alim. menage"
+##   ..- attr(*, "format.stata")= chr "%12.0g"
+##  $ dtot                : num [1:7120] 2288874 1806940 3398241 4846637 2546811 ...
+##   ..- attr(*, "label")= chr "Conso annuelle totale menage"
+##   ..- attr(*, "format.stata")= chr "%12.0g"
+##  $ pcexp               : num [1:7120] 664906 787360 987171 844753 2219506 ...
+##   ..- attr(*, "label")= chr "Indicateur de bien-être"
+##   ..- attr(*, "format.stata")= chr "%12.0g"
+##  $ zzae                : num [1:7120] 424179 424179 424179 424179 424179 ...
+##   ..- attr(*, "format.stata")= chr "%12.0g"
+##  $ zref                : num [1:7120] 369666 369666 369666 369666 369666 ...
+##   ..- attr(*, "label")= chr "Seuil pauvrete national"
+##   ..- attr(*, "format.stata")= chr "%12.0g"
+##  $ def_spa             : num [1:7120] 1.15 1.15 1.15 1.15 1.15 ...
+##   ..- attr(*, "label")= chr "Deflateur spatial"
+##   ..- attr(*, "format.stata")= chr "%9.0g"
+##  $ def_temp            : num [1:7120] 0.991 0.991 0.991 0.991 1.013 ...
+##   ..- attr(*, "label")= chr "Deflateur temporel"
+##   ..- attr(*, "format.stata")= chr "%9.0g"
+##  $ def_temp_prix2021m11: num [1:7120] 1.03 1.03 1.03 1.03 1.05 ...
+##   ..- attr(*, "label")= chr "temporal deflator for international poverty, 1 = 2021m11 prices"
+##   ..- attr(*, "format.stata")= chr "%9.0g"
+##  $ def_temp_cpi        : num [1:7120] 1 1 1 1 1.02 ...
+##   ..- attr(*, "label")= chr "alternative temporal deflator based on official CPI, 2018/19 style"
+##   ..- attr(*, "format.stata")= chr "%9.0g"
+##  $ def_temp_adj        : num [1:7120] 1.01 1.01 1.01 1.01 1.03 ...
+##   ..- attr(*, "label")= chr "temporal deflator adjusted for difference between hh and market survey periods"
+##   ..- attr(*, "format.stata")= chr "%9.0g"
+##  $ zali0               : num [1:7120] 196233 196233 196233 196233 196233 ...
+##   ..- attr(*, "label")= chr "(sum) conso_pc_val_up"
+##   ..- attr(*, "format.stata")= chr "%12.0g"
+##  $ dtet                : num [1:7120] 769710 911466 1142771 977906 2515290 ...
+##   ..- attr(*, "format.stata")= chr "%12.0g"
+##  $ monthly_cpi         : num [1:7120] 120 120 120 120 123 ...
+##   ..- attr(*, "label")= chr "Monthly CPI value"
+##   ..- attr(*, "format.stata")= chr "%12.0g"
+##  $ cpi2017             : num [1:7120] 1.1 1.1 1.1 1.1 1.1 ...
+##   ..- attr(*, "format.stata")= chr "%9.0g"
+##  $ icp2017             : num [1:7120] 239 239 239 239 239 ...
+##   ..- attr(*, "format.stata")= chr "%12.0g"
+##  $ dollars             : num [1:7120] 7.71 9.12 11.44 9.79 25.79 ...
+##   ..- attr(*, "label")= chr "welfare in 2017 PPP USD per capita per day (not spatially deflated)"
+##   ..- attr(*, "format.stata")= chr "%9.0g"
+###Affichages des premieres lignes des deux bases
+
+Nous affichons les premières lignes des deux bases afin de se faire une idée de leurs observations
+
+head(data_welf2018)
+## # A tibble: 6 × 35
+##   country  year  hhid grappe menage vague   zae region   milieu  hhweight hhsize
+##   <chr>   <dbl> <dbl>  <dbl>  <dbl> <dbl> <dbl> <dbl+lb> <dbl+l>    <dbl>  <dbl>
+## 1 SEN      2018  1001      1      1     1     1 1 [DAKA… 1 [Urb…    1750.      2
+## 2 SEN      2018  1002      1      2     1     1 1 [DAKA… 1 [Urb…    1750.      2
+## 3 SEN      2018  1003      1      3     1     1 1 [DAKA… 1 [Urb…    1750.      1
+## 4 SEN      2018  2001      2      1     2     1 1 [DAKA… 1 [Urb…     266.     10
+## 5 SEN      2018  2002      2      2     2     1 1 [DAKA… 1 [Urb…     266.      6
+## 6 SEN      2018  2003      2      3     2     1 1 [DAKA… 1 [Urb…     266.      4
+## # ℹ 24 more variables: eqadu1 <dbl>, eqadu2 <dbl>, hgender <dbl+lbl>,
+## #   hage <dbl>, hmstat <dbl+lbl>, hreligion <dbl+lbl>, hnation <dbl+lbl>,
+## #   halfab <dbl+lbl>, heduc <dbl+lbl>, hdiploma <dbl+lbl>, hhandig <dbl+lbl>,
+## #   hactiv7j <dbl+lbl>, hactiv12m <dbl+lbl>, hbranch <dbl+lbl>,
+## #   hsectins <dbl+lbl>, hcsp <dbl+lbl>, dali <dbl>, dnal <dbl>, dtot <dbl>,
+## #   pcexp <dbl>, zzae <dbl>, zref <dbl>, def_spa <dbl>, def_temp <dbl>
+head(data_welf2021)
+## # A tibble: 6 × 47
+##   grappe menage country  year  hhid vague month      zae        region   milieu 
+##    <dbl>  <dbl> <chr>   <dbl> <dbl> <dbl> <date>     <dbl+lbl>  <dbl+lb> <dbl+l>
+## 1      2      5 SEN      2021   205     2 2022-05-01 11 [Dakar] 1 [daka… 1 [Urb…
+## 2      2     15 SEN      2021   215     2 2022-05-01 11 [Dakar] 1 [daka… 1 [Urb…
+## 3      2      3 SEN      2021   203     2 2022-05-01 11 [Dakar] 1 [daka… 1 [Urb…
+## 4      2     13 SEN      2021   213     2 2022-05-01 11 [Dakar] 1 [daka… 1 [Urb…
+## 5      2      8 SEN      2021   208     2 2022-06-01 11 [Dakar] 1 [daka… 1 [Urb…
+## 6      2     16 SEN      2021   216     2 2022-06-01 11 [Dakar] 1 [daka… 1 [Urb…
+## # ℹ 37 more variables: hhweight <dbl>, hhsize <dbl>, eqadu1 <dbl>,
+## #   eqadu2 <dbl>, hgender <dbl+lbl>, hage <dbl>, hmstat <dbl+lbl>,
+## #   hreligion <dbl+lbl>, hnation <dbl+lbl>, hethnie <dbl+lbl>, halfa <dbl+lbl>,
+## #   halfa2 <dbl+lbl>, heduc <dbl+lbl>, hdiploma <dbl+lbl>, hhandig <dbl+lbl>,
+## #   hactiv7j <dbl+lbl>, hactiv12m <dbl+lbl>, hbranch <dbl+lbl>,
+## #   hsectins <dbl+lbl>, hcsp <dbl+lbl>, dali <dbl>, dnal <dbl>, dtot <dbl>,
+## #   pcexp <dbl>, zzae <dbl>, zref <dbl>, def_spa <dbl>, def_temp <dbl>, …
+###Affichage de quelques statistiques des deux bases
+
+Il s’agit d’afficher un résumé statistique des variables contenues dans les bases de données.
+
+summary(data_welf2018)
+##    country               year           hhid            grappe     
+##  Length:7156        Min.   :2018   Min.   :  1001   Min.   :  1.0  
+##  Class :character   1st Qu.:2018   1st Qu.:151002   1st Qu.:151.0  
+##  Mode  :character   Median :2018   Median :300003   Median :300.0  
+##                     Mean   :2018   Mean   :299934   Mean   :299.9  
+##                     3rd Qu.:2018   3rd Qu.:449010   3rd Qu.:449.0  
+##                     Max.   :2018   Max.   :598012   Max.   :598.0  
+##                                                                    
+##      menage           vague            zae            region      
+##  Min.   : 1.000   Min.   :1.000   Min.   :1.000   Min.   : 1.000  
+##  1st Qu.: 3.000   1st Qu.:1.000   1st Qu.:2.000   1st Qu.: 3.000  
+##  Median : 6.000   Median :2.000   Median :4.000   Median : 7.000  
+##  Mean   : 6.491   Mean   :1.501   Mean   :3.466   Mean   : 6.781  
+##  3rd Qu.: 9.000   3rd Qu.:2.000   3rd Qu.:5.000   3rd Qu.:10.000  
+##  Max.   :12.000   Max.   :2.000   Max.   :6.000   Max.   :14.000  
+##                                                                   
+##      milieu         hhweight           hhsize          eqadu1      
+##  Min.   :1.000   Min.   :  15.29   Min.   : 1.00   Min.   : 0.660  
+##  1st Qu.:1.000   1st Qu.: 120.57   1st Qu.: 5.00   1st Qu.: 3.960  
+##  Median :1.000   Median : 203.88   Median : 8.00   Median : 5.982  
+##  Mean   :1.449   Mean   : 250.38   Mean   : 9.24   Mean   : 6.867  
+##  3rd Qu.:2.000   3rd Qu.: 322.74   3rd Qu.:12.00   3rd Qu.: 8.720  
+##  Max.   :2.000   Max.   :2808.65   Max.   :56.00   Max.   :41.240  
+##                                                                    
+##      eqadu2          hgender           hage           hmstat     
+##  Min.   : 1.000   Min.   :1.000   Min.   :17.00   Min.   :1.000  
+##  1st Qu.: 3.167   1st Qu.:1.000   1st Qu.:41.00   1st Qu.:2.000  
+##  Median : 4.333   Median :1.000   Median :51.00   Median :2.000  
+##  Mean   : 4.811   Mean   :1.262   Mean   :51.49   Mean   :2.704  
+##  3rd Qu.: 5.984   3rd Qu.:2.000   3rd Qu.:62.00   3rd Qu.:3.000  
+##  Max.   :23.706   Max.   :2.000   Max.   :99.00   Max.   :7.000  
+##                                                   NA's   :2      
+##    hreligion        hnation           halfab           heduc      
+##  Min.   :1.000   Min.   : 2.000   Min.   :0.0000   Min.   :1.000  
+##  1st Qu.:1.000   1st Qu.: 7.000   1st Qu.:0.0000   1st Qu.:1.000  
+##  Median :1.000   Median : 7.000   Median :0.0000   Median :1.000  
+##  Mean   :1.061   Mean   : 7.024   Mean   :0.4707   Mean   :2.188  
+##  3rd Qu.:1.000   3rd Qu.: 7.000   3rd Qu.:1.0000   3rd Qu.:3.000  
+##  Max.   :5.000   Max.   :12.000   Max.   :1.0000   Max.   :9.000  
+##                                                                   
+##     hdiploma          hhandig           hactiv7j       hactiv12m   
+##  Min.   : 0.0000   Min.   :0.00000   Min.   :1.000   Min.   :1.00  
+##  1st Qu.: 0.0000   1st Qu.:0.00000   1st Qu.:1.000   1st Qu.:1.00  
+##  Median : 0.0000   Median :0.00000   Median :1.000   Median :1.00  
+##  Mean   : 0.6385   Mean   :0.09083   Mean   :1.975   Mean   :1.49  
+##  3rd Qu.: 0.0000   3rd Qu.:0.00000   3rd Qu.:2.000   3rd Qu.:1.00  
+##  Max.   :10.0000   Max.   :1.00000   Max.   :5.000   Max.   :3.00  
+##                                                                    
+##     hbranch          hsectins          hcsp             dali         
+##  Min.   : 1.000   Min.   :1.000   Min.   : 1.000   Min.   :  113187  
+##  1st Qu.: 1.000   1st Qu.:3.000   1st Qu.: 5.000   1st Qu.: 1143473  
+##  Median : 6.000   Median :3.000   Median : 9.000   Median : 1746986  
+##  Mean   : 5.324   Mean   :2.894   Mean   : 7.428   Mean   : 2063862  
+##  3rd Qu.: 9.000   3rd Qu.:3.000   3rd Qu.: 9.000   3rd Qu.: 2575472  
+##  Max.   :11.000   Max.   :6.000   Max.   :10.000   Max.   :31295272  
+##  NA's   :1722     NA's   :1722    NA's   :1722                       
+##       dnal                dtot               pcexp               zzae       
+##  Min.   :    27585   Min.   :   278116   Min.   :   64161   Min.   :296311  
+##  1st Qu.:   990977   1st Qu.:  2268859   1st Qu.:  300149   1st Qu.:305745  
+##  Median :  1632298   Median :  3484846   Median :  442539   Median :326047  
+##  Mean   :  2268143   Mean   :  4332005   Mean   :  615630   Mean   :332244  
+##  3rd Qu.:  2771981   3rd Qu.:  5391925   3rd Qu.:  697134   3rd Qu.:348125  
+##  Max.   :221582921   Max.   :227607152   Max.   :14286279   Max.   :391340  
+##                                                                             
+##       zref           def_spa          def_temp     
+##  Min.   :333441   Min.   :0.8886   Min.   :0.9916  
+##  1st Qu.:333441   1st Qu.:0.9169   1st Qu.:0.9916  
+##  Median :333441   Median :0.9778   Median :0.9955  
+##  Mean   :333441   Mean   :0.9964   Mean   :1.0015  
+##  3rd Qu.:333441   3rd Qu.:1.0440   3rd Qu.:1.0089  
+##  Max.   :333441   Max.   :1.1736   Max.   :1.0147  
+## 
+summary(data_welf2021)
+##      grappe          menage         country               year     
+##  Min.   :  2.0   Min.   : 1.000   Length:7120        Min.   :2021  
+##  1st Qu.:152.0   1st Qu.: 4.000   Class :character   1st Qu.:2021  
+##  Median :301.0   Median : 7.000   Mode  :character   Median :2021  
+##  Mean   :300.7   Mean   : 7.187                      Mean   :2021  
+##  3rd Qu.:450.0   3rd Qu.:10.000                      3rd Qu.:2021  
+##  Max.   :598.0   Max.   :19.000                      Max.   :2021  
+##                                                                    
+##       hhid           vague           month                 zae        
+##  Min.   :  201   Min.   :1.000   Min.   :2021-11-01   Min.   : 1.000  
+##  1st Qu.:15208   1st Qu.:1.000   1st Qu.:2021-12-01   1st Qu.: 5.000  
+##  Median :30103   Median :2.000   Median :2022-04-01   Median : 7.000  
+##  Mean   :30082   Mean   :1.503   Mean   :2022-02-16   Mean   : 6.712  
+##  3rd Qu.:45004   3rd Qu.:2.000   3rd Qu.:2022-05-01   3rd Qu.: 9.000  
+##  Max.   :59812   Max.   :2.000   Max.   :2022-07-01   Max.   :11.000  
+##                                                                       
+##      region           milieu         hhweight           hhsize      
+##  Min.   : 1.000   Min.   :1.000   Min.   :  17.73   Min.   : 1.000  
+##  1st Qu.: 3.000   1st Qu.:1.000   1st Qu.: 131.07   1st Qu.: 5.000  
+##  Median : 7.000   Median :1.000   Median : 221.81   Median : 8.000  
+##  Mean   : 6.799   Mean   :1.449   Mean   : 297.44   Mean   : 8.747  
+##  3rd Qu.:10.000   3rd Qu.:2.000   3rd Qu.: 380.29   3rd Qu.:11.000  
+##  Max.   :14.000   Max.   :2.000   Max.   :3081.51   Max.   :53.000  
+##                                                                     
+##      eqadu1           eqadu2          hgender           hage       
+##  Min.   : 0.660   Min.   : 1.000   Min.   :1.000   Min.   : 16.00  
+##  1st Qu.: 3.940   1st Qu.: 3.008   1st Qu.:1.000   1st Qu.: 44.00  
+##  Median : 5.790   Median : 4.180   Median :1.000   Median : 54.00  
+##  Mean   : 6.589   Mean   : 4.625   Mean   :1.284   Mean   : 54.08  
+##  3rd Qu.: 8.350   3rd Qu.: 5.762   3rd Qu.:2.000   3rd Qu.: 64.00  
+##  Max.   :40.265   Max.   :22.882   Max.   :2.000   Max.   :101.00  
+##                                                                    
+##      hmstat        hreligion        hnation         hethnie      
+##  Min.   :1.000   Min.   :1.000   Min.   : 4.00   Min.   : 1.000  
+##  1st Qu.:2.000   1st Qu.:1.000   1st Qu.:13.00   1st Qu.: 1.000  
+##  Median :2.000   Median :1.000   Median :13.00   Median : 3.000  
+##  Mean   :2.805   Mean   :1.058   Mean   :12.95   Mean   : 3.096  
+##  3rd Qu.:3.000   3rd Qu.:1.000   3rd Qu.:13.00   3rd Qu.: 3.000  
+##  Max.   :7.000   Max.   :5.000   Max.   :18.00   Max.   :13.000  
+##                                                  NA's   :82      
+##      halfa            halfa2           heduc          hdiploma      
+##  Min.   :0.0000   Min.   :0.0000   Min.   :1.000   Min.   : 0.0000  
+##  1st Qu.:0.0000   1st Qu.:0.0000   1st Qu.:1.000   1st Qu.: 0.0000  
+##  Median :1.0000   Median :0.0000   Median :1.000   Median : 0.0000  
+##  Mean   :0.5117   Mean   :0.4947   Mean   :2.112   Mean   : 0.5622  
+##  3rd Qu.:1.0000   3rd Qu.:1.0000   3rd Qu.:3.000   3rd Qu.: 0.0000  
+##  Max.   :1.0000   Max.   :1.0000   Max.   :9.000   Max.   :10.0000  
+##                                                                     
+##     hhandig           hactiv7j       hactiv12m        hbranch      
+##  Min.   :0.00000   Min.   :1.000   Min.   :1.000   Min.   :  1.00  
+##  1st Qu.:0.00000   1st Qu.:1.000   1st Qu.:1.000   1st Qu.:  1.00  
+##  Median :0.00000   Median :1.000   Median :1.000   Median :  5.00  
+##  Mean   :0.08919   Mean   :2.067   Mean   :1.382   Mean   :  6.36  
+##  3rd Qu.:0.00000   3rd Qu.:5.000   3rd Qu.:1.000   3rd Qu.:  8.00  
+##  Max.   :1.00000   Max.   :5.000   Max.   :3.000   Max.   :930.00  
+##                                                    NA's   :1838    
+##     hsectins          hcsp             dali               dnal         
+##  Min.   :1.000   Min.   : 1.000   Min.   :   64205   Min.   :  129749  
+##  1st Qu.:3.000   1st Qu.: 9.000   1st Qu.: 1325492   1st Qu.:  972937  
+##  Median :3.000   Median : 9.000   Median : 1956762   Median : 1595027  
+##  Mean   :2.937   Mean   : 7.717   Mean   : 2276262   Mean   : 2029004  
+##  3rd Qu.:3.000   3rd Qu.: 9.000   3rd Qu.: 2840293   3rd Qu.: 2556010  
+##  Max.   :6.000   Max.   :10.000   Max.   :15144512   Max.   :19917053  
+##  NA's   :1359    NA's   :1326                                          
+##       dtot              pcexp              zzae             zref       
+##  Min.   :  235210   Min.   :  57610   Min.   :331925   Min.   :369666  
+##  1st Qu.: 2432066   1st Qu.: 328408   1st Qu.:335734   1st Qu.:369666  
+##  Median : 3614746   Median : 472561   Median :373110   Median :369666  
+##  Mean   : 4305266   Mean   : 621198   Mean   :371487   Mean   :369666  
+##  3rd Qu.: 5359042   3rd Qu.: 724571   3rd Qu.:385554   3rd Qu.:369666  
+##  Max.   :29248050   Max.   :9990532   Max.   :424179   Max.   :369666  
+##                                                                        
+##     def_spa          def_temp      def_temp_prix2021m11  def_temp_cpi   
+##  Min.   :0.8979   Min.   :0.9455   Min.   :1.000        Min.   :0.9743  
+##  1st Qu.:0.9082   1st Qu.:0.9833   1st Qu.:1.001        1st Qu.:0.9752  
+##  Median :1.0093   Median :0.9949   Median :1.020        Median :0.9935  
+##  Mean   :1.0049   Mean   :0.9981   Mean   :1.020        Mean   :0.9935  
+##  3rd Qu.:1.0430   3rd Qu.:1.0200   3rd Qu.:1.027        3rd Qu.:1.0009  
+##  Max.   :1.1475   Max.   :1.0590   Max.   :1.087        Max.   :1.0587  
+##                                                                         
+##   def_temp_adj        zali0             dtet           monthly_cpi   
+##  Min.   :0.9606   Min.   :196233   Min.   :   50712   Min.   :117.2  
+##  1st Qu.:0.9991   1st Qu.:196233   1st Qu.:  317994   1st Qu.:117.4  
+##  Median :1.0109   Median :196233   Median :  469028   Median :119.6  
+##  Mean   :1.0140   Mean   :196233   Mean   :  641538   Mean   :119.6  
+##  3rd Qu.:1.0363   3rd Qu.:196233   3rd Qu.:  746041   3rd Qu.:120.4  
+##  Max.   :1.0760   Max.   :196233   Max.   :10366096   Max.   :127.4  
+##                                                                      
+##     cpi2017         icp2017         dollars        
+##  Min.   :1.097   Min.   :238.6   Min.   :  0.5376  
+##  1st Qu.:1.097   1st Qu.:238.6   1st Qu.:  3.2473  
+##  Median :1.097   Median :238.6   Median :  4.7915  
+##  Mean   :1.097   Mean   :238.6   Mean   :  6.5526  
+##  3rd Qu.:1.097   3rd Qu.:238.6   3rd Qu.:  7.6134  
+##  Max.   :1.097   Max.   :238.6   Max.   :102.5809  
+## 
+###Verification des doublons
+
+Nous verifions pour détecter et compter les ménages dupliqués dans les bases de données.
+
+doublon_2018 <- data_welf2018[duplicated(data_welf2018[, c("grappe","menage")]), ] # sélectionne les ménages dupliqué qui sont dans la base 2018
+
+doublon_2021 <- data_welf2021[duplicated(data_welf2021[, c("grappe","menage")]), ] # sélectionne les ménages dupliqué qui sont dans la base 2021
+
+cat("Nombre de doublons présents dans la base welfare 2018  :", nrow(doublon_2018), "\n")
+## Nombre de doublons présents dans la base welfare 2018  : 0
+cat("Nombre de doublons présents dans la base welfare 2021  :", nrow(doublon_2021))
+## Nombre de doublons présents dans la base welfare 2021  : 0
+###verification des valeurs manquantes
+
+Il s’agit d’afficher les valeurs manquantes pour chacune des deux bases de données
+
+# Calculer le nombre de valeurs manquantes par variable (colonne)
+print("Valeurs manquante base 2018")
+## [1] "Valeurs manquante base 2018"
+NA_base_2018 <- colSums(is.na(data_welf2018))
+NA_base_2018
+##   country      year      hhid    grappe    menage     vague       zae    region 
+##         0         0         0         0         0         0         0         0 
+##    milieu  hhweight    hhsize    eqadu1    eqadu2   hgender      hage    hmstat 
+##         0         0         0         0         0         0         0         2 
+## hreligion   hnation    halfab     heduc  hdiploma   hhandig  hactiv7j hactiv12m 
+##         0         0         0         0         0         0         0         0 
+##   hbranch  hsectins      hcsp      dali      dnal      dtot     pcexp      zzae 
+##      1722      1722      1722         0         0         0         0         0 
+##      zref   def_spa  def_temp 
+##         0         0         0
+print("Valeurs manquante base 2021")
+## [1] "Valeurs manquante base 2021"
+NA_base_2021 <- colSums(is.na(data_welf2018))
+NA_base_2021
+##   country      year      hhid    grappe    menage     vague       zae    region 
+##         0         0         0         0         0         0         0         0 
+##    milieu  hhweight    hhsize    eqadu1    eqadu2   hgender      hage    hmstat 
+##         0         0         0         0         0         0         0         2 
+## hreligion   hnation    halfab     heduc  hdiploma   hhandig  hactiv7j hactiv12m 
+##         0         0         0         0         0         0         0         0 
+##   hbranch  hsectins      hcsp      dali      dnal      dtot     pcexp      zzae 
+##      1722      1722      1722         0         0         0         0         0 
+##      zref   def_spa  def_temp 
+##         0         0         0
+1.3 Visualisations des observations des deux bases
+###Affichage des observations
+
+Nous extrayons les noms des variables présentes dans chacune des bases de données, cela nous permet d’avoir une vue globale des variables des deux bases de données
+
+vars_2018 <- colnames(data_welf2018) # liste les variables dans la base 2018
+vars_2021 <- colnames(data_welf2021) # liste les variables dans la base 2021
+
+cat("Variables dans la base 2018 :\n")
+## Variables dans la base 2018 :
+for (var in vars_2018) {
+  cat(var, "\n")}
+## country 
+## year 
+## hhid 
+## grappe 
+## menage 
+## vague 
+## zae 
+## region 
+## milieu 
+## hhweight 
+## hhsize 
+## eqadu1 
+## eqadu2 
+## hgender 
+## hage 
+## hmstat 
+## hreligion 
+## hnation 
+## halfab 
+## heduc 
+## hdiploma 
+## hhandig 
+## hactiv7j 
+## hactiv12m 
+## hbranch 
+## hsectins 
+## hcsp 
+## dali 
+## dnal 
+## dtot 
+## pcexp 
+## zzae 
+## zref 
+## def_spa 
+## def_temp
+cat("\nVariables dans la base 2021 :\n")
+## 
+## Variables dans la base 2021 :
+for (var in vars_2021) {
+  cat(var, "\n")}
+## grappe 
+## menage 
+## country 
+## year 
+## hhid 
+## vague 
+## month 
+## zae 
+## region 
+## milieu 
+## hhweight 
+## hhsize 
+## eqadu1 
+## eqadu2 
+## hgender 
+## hage 
+## hmstat 
+## hreligion 
+## hnation 
+## hethnie 
+## halfa 
+## halfa2 
+## heduc 
+## hdiploma 
+## hhandig 
+## hactiv7j 
+## hactiv12m 
+## hbranch 
+## hsectins 
+## hcsp 
+## dali 
+## dnal 
+## dtot 
+## pcexp 
+## zzae 
+## zref 
+## def_spa 
+## def_temp 
+## def_temp_prix2021m11 
+## def_temp_cpi 
+## def_temp_adj 
+## zali0 
+## dtet 
+## monthly_cpi 
+## cpi2017 
+## icp2017 
+## dollars
+###Identifications des variables des deux base des donnees
+
+Nous identifions les variables qui sont communes aux deux bases et celles qui sont specifiques a chacune des deux bases, cela nous permet d’avoir une idée de comment s’y prendre pour l’harmonisation des deux bases pour la fusion.
+
+# Identification des variables communes entre les deux bases de données
+vars_com <- dplyr::intersect(vars_2018, vars_2021)
+
+# Identification des variables spécifiques à chaque base
+vars_uniq_welf2018 <- dplyr::setdiff(vars_2018, vars_com)
+vars_uniq_welf2021 <- dplyr::setdiff(vars_2021, vars_com)
+
+# Affichage
+cat("Variables communes :\n")
+## Variables communes :
+print(vars_com)
+##  [1] "country"   "year"      "hhid"      "grappe"    "menage"    "vague"    
+##  [7] "zae"       "region"    "milieu"    "hhweight"  "hhsize"    "eqadu1"   
+## [13] "eqadu2"    "hgender"   "hage"      "hmstat"    "hreligion" "hnation"  
+## [19] "heduc"     "hdiploma"  "hhandig"   "hactiv7j"  "hactiv12m" "hbranch"  
+## [25] "hsectins"  "hcsp"      "dali"      "dnal"      "dtot"      "pcexp"    
+## [31] "zzae"      "zref"      "def_spa"   "def_temp"
+cat("\nVariables spécifiques à la base 2018 :\n")
+## 
+## Variables spécifiques à la base 2018 :
+print(vars_uniq_welf2018)
+## [1] "halfab"
+cat("\nVariables spécifiques à la base 2021 :\n")
+## 
+## Variables spécifiques à la base 2021 :
+print(vars_uniq_welf2021)
+##  [1] "month"                "hethnie"              "halfa"               
+##  [4] "halfa2"               "def_temp_prix2021m11" "def_temp_cpi"        
+##  [7] "def_temp_adj"         "zali0"                "dtet"                
+## [10] "monthly_cpi"          "cpi2017"              "icp2017"             
+## [13] "dollars"
+Nous constatons que toutes les variables presentes en 2018 sont egalement presentes en 2021 a l’exception de la variable “alphab”. Par contre il y a 13 nouvelles en 2021 qui ne sont pas presents en 2018.
+
+2 Traitement des bases de données
+Après identification des variables des deux bases de données ont constate des variables communes mais aussi des variables specifiques a chacune des bases. Pour la suite du travail il nous faut nous assurer de la coherence des deux bases de données pour pouvoir faire le merge. Pour cela nous allons proceder au recodage, la labelisation, et l’harmonisation de certaines variables.
+
+De prime a bord nous constatons que la varaible “halfab” en 2018 et “halfa” en 2021 represente la meme variable c’est a dire alphabetisation du chef de menage. Nous allons donc procedé à l’uniformisation de variable en le renommant en fonction du nom dans l’une des bases
+
+# Renommons la variable halpha en halphab dans la base 2021
+vars_2021[vars_2021== "halfa"]<- "halfab"
+vars_2021
+##  [1] "grappe"               "menage"               "country"             
+##  [4] "year"                 "hhid"                 "vague"               
+##  [7] "month"                "zae"                  "region"              
+## [10] "milieu"               "hhweight"             "hhsize"              
+## [13] "eqadu1"               "eqadu2"               "hgender"             
+## [16] "hage"                 "hmstat"               "hreligion"           
+## [19] "hnation"              "hethnie"              "halfab"              
+## [22] "halfa2"               "heduc"                "hdiploma"            
+## [25] "hhandig"              "hactiv7j"             "hactiv12m"           
+## [28] "hbranch"              "hsectins"             "hcsp"                
+## [31] "dali"                 "dnal"                 "dtot"                
+## [34] "pcexp"                "zzae"                 "zref"                
+## [37] "def_spa"              "def_temp"             "def_temp_prix2021m11"
+## [40] "def_temp_cpi"         "def_temp_adj"         "zali0"               
+## [43] "dtet"                 "monthly_cpi"          "cpi2017"             
+## [46] "icp2017"              "dollars"
+#Ajoutons cette variable a la liste des variables communes 
+vars_com <- append(vars_com, "halfab")
+vars_com
+##  [1] "country"   "year"      "hhid"      "grappe"    "menage"    "vague"    
+##  [7] "zae"       "region"    "milieu"    "hhweight"  "hhsize"    "eqadu1"   
+## [13] "eqadu2"    "hgender"   "hage"      "hmstat"    "hreligion" "hnation"  
+## [19] "heduc"     "hdiploma"  "hhandig"   "hactiv7j"  "hactiv12m" "hbranch"  
+## [25] "hsectins"  "hcsp"      "dali"      "dnal"      "dtot"      "pcexp"    
+## [31] "zzae"      "zref"      "def_spa"   "def_temp"  "halfab"
+2.1 Traitement des variables communes mais avec des labels differents dans les deux bases
+###Verification des variables communes avec des labels differents Le code ci-après permet de vérifier si les labels des variables communes entre les bases 2018 et 2021 sont identiques ou non. Il crée une liste des variables dont les labels diffèrent entre les deux bases. Donc Après exécution, l’objet “vars_label_diff” contient les variables dont les labels sont différents entre les deux bases.
+
+vars_label_diff <- c() #créer une liste vide 
+
+for (variable in vars_com) { #parcourir les variables en communs dans les deux bases
+  
+  if(labelled::is.labelled(data_welf2018[[variable]])){ #vérifier si la variable en 2018 est labéliser
+    
+      value_label_2018 <- labelled::val_labels(data_welf2018[[variable]]) #recupérer les labels de la variable en 2018
+
+  }else{
+      value_label_2018 <- NULL #Mettre vide dans le cas ou la variable en 2018 n'est pas labéliser
+  }
+  
+if(labelled::is.labelled(data_welf2021[[variable]])){ #vérifier si la variable en 2021 est labéliser
+    
+      value_label_2021 <- labelled::val_labels(data_welf2021[[variable]]) #recupérer les labels de la variable en 2021
+  
+  }else{
+    
+      value_label_2021 <- NULL #Mettre vide dans le cas ou la variable en 2021 n'est pas labéliser
+  }
+  
+  if(!identical(value_label_2018, value_label_2021)){ #Vérifier si les labels de la variable  sont identiques entre 2018 et 2021
+vars_label_diff <- append(vars_label_diff,variable) #Si les labels diffèrent, alors ajouter le nom de la variable à la liste créer
+     print(variable)
+     
+   }
+}
+## [1] "zae"
+## [1] "region"
+## [1] "hnation"
+## [1] "hdiploma"
+## [1] "hactiv7j"
+## [1] "hbranch"
+## [1] "hcsp"
+## [1] "halfab"
+Après execution nous aons liste de 7 variables dont les labels diffèrent entre les deux bases. Pour faire le merge il faut harmoniser les labels de ces variables dans les deux bases. Cela fera l’objet de la suite de notre travail.
+
+###Traitement des incoherences des variables
+
+Pour chaque variable, nous allons: - Visualiser la distibution - Détecter l’incohérence - Corriger l’incohérence - Revisualiser la variable pour s’assurer que le traitement n’a pas modifié la distribution
+
+2.1.1 * Traitement de la variable “zae”
+####Visualisation de la distribution
+
+data_welf2018 %>%
+  to_factor() %>% # Convertir les variables labellisées en facteurs
+  select(zae) %>% # Sélectionner la variable à afficher
+  tbl_summary(
+    missing = "always", # Afficher les valeurs manquantes
+    missing_text = "Valeurs manquantes"
+  ) %>%
+  modify_header(label ~ "**Taille de l'échantillon**") %>% 
+  as_gt() %>%  # Conversion en tableau GT
+  gt::tab_header(title = "Répartition des zones agroécologiques") %>% 
+  gt::tab_source_note(source_note = "Source : EHCVM 2018 (SEN)") %>% 
+  gt::tab_options(
+    heading.title.font.size = 16,
+    heading.title.font.weight = "bold"
+  )
+Répartition des zones agroécologiques
+Taille de l’échantillon	N = 7,1561
+Zone agroecologique	
+    1	1,020 (14%)
+    2	912 (13%)
+    3	1,602 (22%)
+    4	1,414 (20%)
+    5	1,752 (24%)
+    6	456 (6.4%)
+    Valeurs manquantes	0
+Source : EHCVM 2018 (SEN)
+1 n (%)
+####Detection de l’incoherence Nous affichons les labels de la variales dans les deux bases pour voir l’incoherence
+
+cat("Labels de la variable 'zae' dans la base 2018 :\n")
+## Labels de la variable 'zae' dans la base 2018 :
+print(labelled::val_labels(data_welf2018$zae))
+## NULL
+cat("\nLabels de la variable 'zae' dans la base 2021 :\n")
+## 
+## Labels de la variable 'zae' dans la base 2021 :
+print(labelled::val_labels(data_welf2021$zae))
+##                       Kédougou              Saint-Louis-Matam 
+##                              1                              3 
+##           Thies-Diourbel-Louga        Kaolack-Fatick-Kaffrine 
+##                              5                              7 
+## Ziguinchor-Tamba-Kolda-Sédhiou                          Dakar 
+##                              9                             11
+####Correction de l’incoherence Nous recodons et appliquons les labels à la variable zae dans 2018 pour s’assurerer de la coherence avec la base 2021
+
+# Recodage de la variable zae
+data_welf2018 <- data_welf2018 %>%
+  mutate(
+    zae = case_when(
+      zae == 6 ~ 1,   # Kédougou
+      zae == 2 ~ 3,   # Saint-Louis-Matam
+      zae == 3 ~ 5,   # Thies-Diourbel-Louga
+      zae == 4 ~ 7,   # Kaolack-Fatick-Kaffrine
+      zae == 5 ~ 9,   # Ziguinchor-Tamba-Kolda-Sédhiou
+      zae == 1 ~ 11,  # Dakar
+      TRUE ~ NA_real_  # Toutes les autres valeurs deviennent NA
+    ))
+
+# Appliquer les labels à la variable zae
+data_welf2018$zae <- labelled(
+  data_welf2018$zae,
+  labels = c(
+    "Kédougou" = 1, 
+    "Saint-Louis-Matam" = 3, 
+    "Thies-Diourbel-Louga" = 5,
+    "Kaolack-Fatick-Kaffrine" = 7,
+    "Ziguinchor-Tamba-Kolda-Sédhiou" = 9,
+    "Dakar" = 11
+  ))
+
+# Appliquer les labels à la variable zae
+data_welf2021$zae <- labelled(
+  data_welf2021$zae,
+  labels = c(
+    "Kédougou" = 1, 
+    "Saint-Louis-Matam" = 3, 
+    "Thies-Diourbel-Louga" = 5,
+    "Kaolack-Fatick-Kaffrine" = 7,
+    "Ziguinchor-Tamba-Kolda-Sédhiou" = 9,
+    "Dakar" = 11
+  ))
+####Revisualisons la distribution apres la correction
+
+# Affichage des tableaux
+table_2018<-data_welf2018 %>%
+  mutate(zae = to_factor(zae)) %>% # Convertir en facteur si nécessaire
+  select(zae) %>% # Sélectionner la variable
+  tbl_summary(
+    missing = "always", # Afficher les valeurs manquantes
+    missing_text = "Valeurs manquantes"
+  ) %>%
+  modify_header(label ~ "**Taille de l'échantillon**") %>% 
+  as_gt() %>%  # Convertir en tableau GT
+  gt::tab_header(title = "Répartition des zones agroécologiques") %>% 
+  gt::tab_source_note(source_note = "Source : EHCVM 2018 (SEN)") %>% 
+  gt::tab_options(
+    heading.title.font.size = 16,
+    heading.title.font.weight = "bold"
+  )
+
+# Affichage du tableau
+table_2018
+Répartition des zones agroécologiques
+Taille de l’échantillon	N = 7,1561
+zae	
+    Kédougou	456 (6.4%)
+    Saint-Louis-Matam	912 (13%)
+    Thies-Diourbel-Louga	1,602 (22%)
+    Kaolack-Fatick-Kaffrine	1,414 (20%)
+    Ziguinchor-Tamba-Kolda-Sédhiou	1,752 (24%)
+    Dakar	1,020 (14%)
+    Valeurs manquantes	0
+Source : EHCVM 2018 (SEN)
+1 n (%)
+Nous voyons que les distributions restent les memes après la correction.
+
+2.1.2 * Traitement de la variable “hnation”
+####Visualisation de la distribution
+
+# Visualisation dans la base 2018
+table_2018<-data_welf2018 %>%
+  mutate(hnation = to_factor(hnation)) %>% # Convertir en facteur si nécessaire
+  select(hnation) %>% # Sélectionner la variable
+  tbl_summary(
+    missing = "always", # Afficher les valeurs manquantes
+    missing_text = "Valeurs manquantes"
+  ) %>%
+  modify_header(label ~ "**Taille de l'échantillon**") %>% 
+  as_gt() %>%  
+  gt::tab_header(title = "Nationalité du chef de ménage (EHCVM 2018)") %>% 
+  gt::tab_source_note(source_note = "Source : EHCVM 2018 (SEN)") %>% 
+  gt::tab_options(
+    heading.title.font.size = 16,
+    heading.title.font.weight = "bold"
+  )
+
+# Visualisation dans la base 2021
+table_2021<-data_welf2021 %>%
+  mutate(hnation = to_factor(hnation)) %>% # Convertir en facteur si nécessaire
+  select(hnation) %>% # Sélectionner la variable
+  tbl_summary(
+    missing = "always", # Afficher les valeurs manquantes
+    missing_text = "Valeurs manquantes"
+  ) %>%
+  modify_header(label ~ "**Taille de l'échantillon**") %>% 
+  as_gt() %>%  
+  gt::tab_header(title = "Nationalité du chef de ménage (EHCVM 2021)") %>% 
+  gt::tab_source_note(source_note = "Source : EHCVM 2021 (SEN)") %>% 
+  gt::tab_options(
+    heading.title.font.size = 16,
+    heading.title.font.weight = "bold"
+  )
+
+# Affichage des tableaux
+table_2018
+Nationalité du chef de ménage (EHCVM 2018)
+Taille de l’échantillon	N = 7,1561
+Nationalite du CM	
+    Benin	0 (0%)
+    Burkina Faso	1 (<0.1%)
+    Côte d'Ivoire	0 (0%)
+    Guinée Bissau	18 (0.3%)
+    Mali	27 (0.4%)
+    Niger	3 (<0.1%)
+    Sénégal	7,023 (98%)
+    Togo	2 (<0.1%)
+    Nigéria	2 (<0.1%)
+    Autre CEDEAO	39 (0.5%)
+    Autre Afrique	37 (0.5%)
+    Autre pays hors Afrique	4 (<0.1%)
+    Valeurs manquantes	0
+Source : EHCVM 2018 (SEN)
+1 n (%)
+table_2021
+Nationalité du chef de ménage (EHCVM 2021)
+Taille de l’échantillon	N = 7,1201
+Nationalite du CM	
+    Bénin	0 (0%)
+    Burkina Faso	0 (0%)
+    Cape-vert	0 (0%)
+    Cote d'ivoire	1 (<0.1%)
+    Gambie	2 (<0.1%)
+    Ghana	1 (<0.1%)
+    Guinee	39 (0.5%)
+    Guinée Bissau	8 (0.1%)
+    Liberia	0 (0%)
+    Mali	18 (0.3%)
+    Niger	2 (<0.1%)
+    Nigeria	1 (<0.1%)
+    Sénégal	7,038 (99%)
+    Serra-Leonne	0 (0%)
+    Togo	1 (<0.1%)
+    Autre Afrique	7 (<0.1%)
+    Autre pays hors Afrique	2 (<0.1%)
+    Valeurs manquantes	0
+Source : EHCVM 2021 (SEN)
+1 n (%)
+####Detection de l’incoherence Nous affichons les labels de la variales dans les deux bases pour voir l’incoherence
+
+cat("Labels de la variable 'hnation' dans la base 2018 :\n")
+## Labels de la variable 'hnation' dans la base 2018 :
+print(labelled::val_labels(data_welf2018$hnation))
+##                   Benin            Burkina Faso           Côte d'Ivoire 
+##                       1                       2                       3 
+##           Guinée Bissau                    Mali                   Niger 
+##                       4                       5                       6 
+##                 Sénégal                    Togo                 Nigéria 
+##                       7                       8                       9 
+##            Autre CEDEAO           Autre Afrique Autre pays hors Afrique 
+##                      10                      11                      12
+cat("\nLabels de la variable 'hnation' dans la base 2021 :\n")
+## 
+## Labels de la variable 'hnation' dans la base 2021 :
+print(labelled::val_labels(data_welf2021$hnation))
+##                   Bénin            Burkina Faso               Cape-vert 
+##                       1                       2                       3 
+##           Cote d'ivoire                  Gambie                   Ghana 
+##                       4                       5                       6 
+##                  Guinee           Guinée Bissau                 Liberia 
+##                       7                       8                       9 
+##                    Mali                   Niger                 Nigeria 
+##                      10                      11                      12 
+##                 Sénégal            Serra-Leonne                    Togo 
+##                      13                      14                      15 
+##           Autre Afrique Autre pays hors Afrique 
+##                      17                      18
+Nous constatons don des incoherences des labels de la varaiable hnation dans les deux baeses, nottament l’orthographe des labels, la présence de nouvelles modilités en 2021 et absents en 2018. Il y a egalement des incoherences au niveau des codes
+
+####Correction des incoherences
+
+# Recodage de la variable hnation
+data_welf2021 <- data_welf2021 %>%
+  mutate(hnation = case_when(
+    hnation == 1  ~ 1,   # Bénin -> Benin
+    hnation == 2  ~ 2,   # Burkina Faso -> Burkina Faso
+    hnation == 4  ~ 3,   # Cote d'Ivoire -> Côte d'Ivoire
+    hnation == 8  ~ 4,   # Guinée Bissau -> Guinée Bissau
+    hnation == 10 ~ 5,   # Mali -> Mali
+    hnation == 11 ~ 6,   # Niger -> Niger
+    hnation == 13 ~ 7,   # Sénégal -> Sénégal
+    hnation == 15 ~ 8,   # Togo -> Togo
+    hnation == 12 ~ 9,   # Nigeria -> Nigéria
+    hnation %in% c(3, 5, 6, 7, 14) ~ 10,  # Cape-vert, Gambie, Ghana, Guinée, Sierra Leone -> Autre CEDEAO
+    hnation == 17 ~ 11,  # Autre Afrique -> Autre Afrique
+    hnation == 18 ~ 12,  # Autre pays hors Afrique -> Autre pays hors Afrique
+    TRUE ~ NA_real_  # Toutes les autres valeurs deviennent NA
+  ))
+
+# Appliquer les labels à la variable hnation
+data_welf2018$hnation <- labelled(
+  data_welf2018$hnation,
+  labels = c(
+    "Benin" = 1, 
+    "Burkina Faso" = 2, 
+    "Côte d'Ivoire" = 3, 
+    "Guinée Bissau" = 4,
+    "Mali" = 5, 
+    "Niger" = 6, 
+    "Sénégal" = 7, 
+    "Togo" = 8, 
+    "Nigéria" = 9,
+    "Autre CEDEAO" = 10, 
+    "Autre Afrique" = 11, 
+    "Autre pays hors Afrique" = 12
+  ))
+
+# Appliquer les labels à la variable hnation
+data_welf2021$hnation <- labelled(
+  data_welf2021$hnation,
+  labels = c(
+    "Benin" = 1, 
+    "Burkina Faso" = 2, 
+    "Côte d'Ivoire" = 3, 
+    "Guinée Bissau" = 4,
+    "Mali" = 5, 
+    "Niger" = 6, 
+    "Sénégal" = 7, 
+    "Togo" = 8, 
+    "Nigéria" = 9,
+    "Autre CEDEAO" = 10, 
+    "Autre Afrique" = 11, 
+    "Autre pays hors Afrique" = 12
+  ))
+####Revisualisation des distribtions apres correction
+
+# Visualisation dans la base 2018
+table_2018<-data_welf2018 %>%
+  mutate(hnation = to_factor(hnation)) %>% # Convertir en facteur si nécessaire
+  select(hnation) %>% # Sélectionner la variable
+  tbl_summary(
+    missing = "always", # Afficher les valeurs manquantes
+    missing_text = "Valeurs manquantes"
+  ) %>%
+  modify_header(label ~ "**Taille de l'échantillon**") %>% 
+  as_gt() %>%  
+  gt::tab_header(title = "Nationalité du chef de ménage (EHCVM 2018)") %>% 
+  gt::tab_source_note(source_note = "Source : EHCVM 2018 (SEN)") %>% 
+  gt::tab_options(
+    heading.title.font.size = 16,
+    heading.title.font.weight = "bold"
+  )
+
+# Visualisation dans la base 2021
+table_2021<-data_welf2021 %>%
+  mutate(hnation = to_factor(hnation)) %>% # Convertir en facteur si nécessaire
+  select(hnation) %>% # Sélectionner la variable
+  tbl_summary(
+    missing = "always", # Afficher les valeurs manquantes
+    missing_text = "Valeurs manquantes"
+  ) %>%
+  modify_header(label ~ "**Taille de l'échantillon**") %>% 
+  as_gt() %>%  
+  gt::tab_header(title = "Nationalité du chef de ménage (EHCVM 2021)") %>% 
+  gt::tab_source_note(source_note = "Source : EHCVM 2021 (SEN)") %>% 
+  gt::tab_options(
+    heading.title.font.size = 16,
+    heading.title.font.weight = "bold"
+  )
+
+# Affichage des tableaux
+table_2018
+Nationalité du chef de ménage (EHCVM 2018)
+Taille de l’échantillon	N = 7,1561
+hnation	
+    Benin	0 (0%)
+    Burkina Faso	1 (<0.1%)
+    Côte d'Ivoire	0 (0%)
+    Guinée Bissau	18 (0.3%)
+    Mali	27 (0.4%)
+    Niger	3 (<0.1%)
+    Sénégal	7,023 (98%)
+    Togo	2 (<0.1%)
+    Nigéria	2 (<0.1%)
+    Autre CEDEAO	39 (0.5%)
+    Autre Afrique	37 (0.5%)
+    Autre pays hors Afrique	4 (<0.1%)
+    Valeurs manquantes	0
+Source : EHCVM 2018 (SEN)
+1 n (%)
+table_2021
+Nationalité du chef de ménage (EHCVM 2021)
+Taille de l’échantillon	N = 7,1201
+hnation	
+    Benin	0 (0%)
+    Burkina Faso	0 (0%)
+    Côte d'Ivoire	1 (<0.1%)
+    Guinée Bissau	8 (0.1%)
+    Mali	18 (0.3%)
+    Niger	2 (<0.1%)
+    Sénégal	7,038 (99%)
+    Togo	1 (<0.1%)
+    Nigéria	1 (<0.1%)
+    Autre CEDEAO	42 (0.6%)
+    Autre Afrique	7 (<0.1%)
+    Autre pays hors Afrique	2 (<0.1%)
+    Valeurs manquantes	0
+Source : EHCVM 2021 (SEN)
+1 n (%)
+2.1.3 * Traitement de la variable “hdiploma”
+####Visualisation de la distribution
+
+# Visualisation dans la base 2018
+table_2018 <- data_welf2018 %>%
+  mutate(hdiploma = to_factor(hdiploma)) %>% # Convertir en facteur si nécessaire
+  select(hdiploma) %>% # Sélectionner la variable
+  tbl_summary(
+    missing = "always", # Afficher les valeurs manquantes
+    missing_text = "Valeurs manquantes"
+  ) %>%
+  modify_header(label ~ "**Taille de l'échantillon**") %>% 
+  as_gt() %>%  
+  gt::tab_header(title = "Diplôme du chef de ménage (EHCVM 2018)") %>% 
+  gt::tab_source_note(source_note = "Source : EHCVM 2018 (SEN)") %>% 
+  gt::tab_options(
+    heading.title.font.size = 16,
+    heading.title.font.weight = "bold"
+  )
+
+# Visualisation dans la base 2021
+table_2021 <- data_welf2021 %>%
+  mutate(hdiploma = to_factor(hdiploma)) %>% # Convertir en facteur si nécessaire
+  select(hdiploma) %>% # Sélectionner la variable
+  tbl_summary(
+    missing = "always", # Afficher les valeurs manquantes
+    missing_text = "Valeurs manquantes"
+  ) %>%
+  modify_header(label ~ "**Taille de l'échantillon**") %>% 
+  as_gt() %>%  
+  gt::tab_header(title = "Diplôme du chef de ménage (EHCVM 2021)") %>% 
+  gt::tab_source_note(source_note = "Source : EHCVM 2021 (SEN)") %>% 
+  gt::tab_options(
+    heading.title.font.size = 16,
+    heading.title.font.weight = "bold"
+  )
+
+# Affichage des tableaux
+table_2018
+Diplôme du chef de ménage (EHCVM 2018)
+Taille de l’échantillon	N = 7,1561
+Diplome du CM	
+    Aucun	5,697 (80%)
+    CEP/CFEE	587 (8.2%)
+    BEPC/BFEM	359 (5.0%)
+    CAP	52 (0.7%)
+    BT	16 (0.2%)
+    BAC	154 (2.2%)
+    DEUG, DUT, BTS	49 (0.7%)
+    Licence	83 (1.2%)
+    Maitrise	63 (0.9%)
+    Master/DEA/DESS	65 (0.9%)
+    Doctorat/Phd	31 (0.4%)
+    Valeurs manquantes	0
+Source : EHCVM 2018 (SEN)
+1 n (%)
+table_2021
+Diplôme du chef de ménage (EHCVM 2021)
+Taille de l’échantillon	N = 7,1201
+Diplome du CM	
+    Aucun	5,772 (81%)
+    cepe	583 (8.2%)
+    bepc	317 (4.5%)
+    cap	39 (0.5%)
+    bt	7 (<0.1%)
+    bac	150 (2.1%)
+    DEUG, DUT, BTS	46 (0.6%)
+    Licence	101 (1.4%)
+    Maitrise	55 (0.8%)
+    Master/DEA/DESS	32 (0.4%)
+    Doctorat/Phd	18 (0.3%)
+    Valeurs manquantes	0
+Source : EHCVM 2021 (SEN)
+1 n (%)
+####Detection de l’incoherence Nous affichons les labels de la variales dans les deux bases pour voir l’incoherence
+
+cat("Labels de la variable 'hdiploma' dans la base 2018 :\n")
+## Labels de la variable 'hdiploma' dans la base 2018 :
+print(labelled::val_labels(data_welf2018$hdiploma))
+##           Aucun        CEP/CFEE       BEPC/BFEM             CAP              BT 
+##               0               1               2               3               4 
+##             BAC  DEUG, DUT, BTS         Licence        Maitrise Master/DEA/DESS 
+##               5               6               7               8               9 
+##    Doctorat/Phd 
+##              10
+cat("\nLabels de la variable 'hdiploma' dans la base 2021 :\n")
+## 
+## Labels de la variable 'hdiploma' dans la base 2021 :
+print(labelled::val_labels(data_welf2021$hdiploma))
+##           Aucun            cepe            bepc             cap              bt 
+##               0               1               2               3               4 
+##             bac  DEUG, DUT, BTS         Licence        Maitrise Master/DEA/DESS 
+##               5               6               7               8               9 
+##    Doctorat/Phd 
+##              10
+Nous constatons don des incoherences des labels de la varaiable hnation dans les deux baeses.
+
+####Correction des incohérences Ici leslabels sont codifiés de la meme maniere nous allons donc proceder a l’uniformisation de l’ortographe des labels
+
+data_welf2021$hdiploma <- labelled(
+  data_welf2021$hdiploma,
+  labels = c(
+    "Aucun"       = 0, 
+    "CEPE"    = 1,
+    "BEPC"   = 2,
+    "CAP"         = 3,
+    "BT"          = 4,
+    "BAC"         = 5,
+    "DEUG/DUT/BTS"= 6,
+    "Licence"     = 7,
+    "Maitrise"    = 8,
+    "Master/DEA/DESS" = 9,
+    "Doctorat/PHD"    = 10
+  ),
+  label = "Diplôme du chef de ménage"
+)
+
+data_welf2018$hdiploma <- labelled(
+  data_welf2018$hdiploma,
+  labels = c(
+    "Aucun"       = 0, 
+    "CEPE"    = 1,
+    "BEPC"   = 2,
+    "CAP"         = 3,
+    "BT"          = 4,
+    "BAC"         = 5,
+    "DEUG/DUT/BTS"= 6,
+    "Licence"     = 7,
+    "Maitrise"    = 8,
+    "Master/DEA/DESS" = 9,
+    "Doctorat/PHD"    = 10 
+  ),
+  label = "Diplôme du chef de ménage"
+)
+####Revisualisation de la distribution apres correction
+
+# Visualisation dans la base 2018
+table_2018 <- data_welf2018 %>%
+  mutate(hdiploma = to_factor(hdiploma)) %>% # Convertir en facteur
+  select(hdiploma) %>% # Sélectionner la variable
+  tbl_summary(
+    missing = "always", # Afficher les valeurs manquantes
+    missing_text = "Valeurs manquantes"
+  ) %>%
+  modify_header(label ~ "**Taille de l'échantillon**") %>% 
+  as_gt() %>%  
+  gt::tab_header(title = "Diplôme du chef de ménage (EHCVM 2018)") %>% 
+  gt::tab_source_note(source_note = "Source : EHCVM 2018 (SEN)") %>% 
+  gt::tab_options(
+    heading.title.font.size = 16,
+    heading.title.font.weight = "bold"
+  )
+
+# Visualisation dans la base 2021
+table_2021 <- data_welf2021 %>%
+  mutate(hdiploma = to_factor(hdiploma)) %>% # Convertir en facteur
+  select(hdiploma) %>% # Sélectionner la variable
+  tbl_summary(
+    missing = "always", # Afficher les valeurs manquantes
+    missing_text = "Valeurs manquantes"
+  ) %>%
+  modify_header(label ~ "**Taille de l'échantillon**") %>% 
+  as_gt() %>%  
+  gt::tab_header(title = "Diplôme du chef de ménage (EHCVM 2021)") %>% 
+  gt::tab_source_note(source_note = "Source : EHCVM 2021 (SEN)") %>% 
+  gt::tab_options(
+    heading.title.font.size = 16,
+    heading.title.font.weight = "bold"
+  )
+
+# Affichage des tableaux
+table_2018
+Diplôme du chef de ménage (EHCVM 2018)
+Taille de l’échantillon	N = 7,1561
+Diplôme du chef de ménage	
+    Aucun	5,697 (80%)
+    CEPE	587 (8.2%)
+    BEPC	359 (5.0%)
+    CAP	52 (0.7%)
+    BT	16 (0.2%)
+    BAC	154 (2.2%)
+    DEUG/DUT/BTS	49 (0.7%)
+    Licence	83 (1.2%)
+    Maitrise	63 (0.9%)
+    Master/DEA/DESS	65 (0.9%)
+    Doctorat/PHD	31 (0.4%)
+    Valeurs manquantes	0
+Source : EHCVM 2018 (SEN)
+1 n (%)
+table_2021
+Diplôme du chef de ménage (EHCVM 2021)
+Taille de l’échantillon	N = 7,1201
+Diplôme du chef de ménage	
+    Aucun	5,772 (81%)
+    CEPE	583 (8.2%)
+    BEPC	317 (4.5%)
+    CAP	39 (0.5%)
+    BT	7 (<0.1%)
+    BAC	150 (2.1%)
+    DEUG/DUT/BTS	46 (0.6%)
+    Licence	101 (1.4%)
+    Maitrise	55 (0.8%)
+    Master/DEA/DESS	32 (0.4%)
+    Doctorat/PHD	18 (0.3%)
+    Valeurs manquantes	0
+Source : EHCVM 2021 (SEN)
+1 n (%)
+2.1.4 Traitement de la variable “hactivi7j”
+####Visualisation de la distribution
+
+# Visualisation dans la base 2018
+table_2018 <- data_welf2018 %>%
+  mutate(hactiv7j = to_factor(hactiv7j)) %>% # Convertir en facteur
+  select(hactiv7j) %>% # Sélectionner la variable
+  tbl_summary(
+    missing = "always", # Afficher les valeurs manquantes
+    missing_text = "Valeurs manquantes"
+  ) %>%
+  modify_header(label ~ "**Taille de l'échantillon**") %>% 
+  as_gt() %>%  
+  gt::tab_header(title = "Activité des 7 derniers jours (EHCVM 2018)") %>% 
+  gt::tab_source_note(source_note = "Source : EHCVM 2018 (SEN)") %>% 
+  gt::tab_options(
+    heading.title.font.size = 16,
+    heading.title.font.weight = "bold"
+  )
+
+# Visualisation dans la base 2021
+table_2021 <- data_welf2021 %>%
+  mutate(hactiv7j = to_factor(hactiv7j)) %>% # Convertir en facteur
+  select(hactiv7j) %>% # Sélectionner la variable
+  tbl_summary(
+    missing = "always", # Afficher les valeurs manquantes
+    missing_text = "Valeurs manquantes"
+  ) %>%
+  modify_header(label ~ "**Taille de l'échantillon**") %>% 
+  as_gt() %>%  
+  gt::tab_header(title = "Activité des 7 derniers jours (EHCVM 2021)") %>% 
+  gt::tab_source_note(source_note = "Source : EHCVM 2021 (SEN)") %>% 
+  gt::tab_options(
+    heading.title.font.size = 16,
+    heading.title.font.weight = "bold"
+  )
+
+# Affichage des tableaux
+table_2018
+Activité des 7 derniers jours (EHCVM 2018)
+Taille de l’échantillon	N = 7,1561
+Activite 7 jours du CM	
+    Occupe	5,362 (75%)
+    Chomeur	44 (0.6%)
+    TF cherchant emploi	3 (<0.1%)
+    TF cherchant pas	60 (0.8%)
+    Inactif	1,687 (24%)
+    Moins de 5 ans	0 (0%)
+    Valeurs manquantes	0
+Source : EHCVM 2018 (SEN)
+1 n (%)
+table_2021
+Activité des 7 derniers jours (EHCVM 2021)
+Taille de l’échantillon	N = 7,1201
+Activite 7 jours du CM	
+    Occupe	5,178 (73%)
+    TF cherchant emploi	5 (<0.1%)
+    TF cherchant pas	62 (0.9%)
+    Chomeur	34 (0.5%)
+    Inactif	1,841 (26%)
+    Moins de 5 ans	0 (0%)
+    Valeurs manquantes	0
+Source : EHCVM 2021 (SEN)
+1 n (%)
+####Detection de l’incoherence Nous affichons les labels de la variales dans les deux bases pour voir l’incoherence
+
+cat("Labels de la variable 'hactiv7j' dans la base 2018 :\n")
+## Labels de la variable 'hactiv7j' dans la base 2018 :
+print(labelled::val_labels(data_welf2018$hactiv7j))
+##              Occupe             Chomeur TF cherchant emploi    TF cherchant pas 
+##                   1                   2                   3                   4 
+##             Inactif      Moins de 5 ans 
+##                   5                   6
+cat("\nLabels de la variable 'hactiv7j' dans la base 2021 :\n")
+## 
+## Labels de la variable 'hactiv7j' dans la base 2021 :
+print(labelled::val_labels(data_welf2021$hactiv7j))
+##              Occupe TF cherchant emploi    TF cherchant pas             Chomeur 
+##                   1                   2                   3                   4 
+##             Inactif      Moins de 5 ans 
+##                   5                   6
+Nous constatons don des incoherences des labels de la varaiable hnation dans les deux baeses.
+
+####Correction des incoherences
+
+data_welf2018$hactiv7j <- labelled(
+  data_welf2018$hactiv7j,
+  labels = c(
+    "Occupé" = 1,
+    "Chômeur" = 2, 
+    "TF cherchant un emploi" = 3,
+    "TF ne cherchant pas un emploi"= 4,
+    "Inactif"      = 5,
+    "Moins de 5 ans"= 6
+),
+label = "Activité 7 jours du CM"
+  )
+
+data_welf2021$hactiv7j <- labelled(
+  data_welf2021$hactiv7j,
+  labels = c(
+    "Occupé" = 1,
+    "Chômeur" = 2, 
+    "TF cherchant un emploi" = 3,
+    "TF ne cherchant pas un emploi"= 4,
+    "Inactif"      = 5,
+    "Moins de 5 ans"= 6
+),
+  label = "Activité 7 jours du CM"
+)
+####Revisualisation de la distribution apres correction
+
+# Visualisation dans la base 2018
+table_2018 <- data_welf2018 %>%
+  mutate(hactiv7j = to_factor(hactiv7j)) %>% # Convertir en facteur
+  select(hactiv7j) %>% # Sélectionner la variable
+  tbl_summary(
+    missing = "always", # Afficher les valeurs manquantes
+    missing_text = "Valeurs manquantes"
+  ) %>%
+  modify_header(label ~ "**Taille de l'échantillon**") %>% 
+  as_gt() %>%  
+  gt::tab_header(title = "Activité des 7 derniers jours (EHCVM 2018)") %>% 
+  gt::tab_source_note(source_note = "Source : EHCVM 2018 (SEN)") %>% 
+  gt::tab_options(
+    heading.title.font.size = 16,
+    heading.title.font.weight = "bold"
+  )
+
+# Visualisation dans la base 2021
+table_2021 <- data_welf2021 %>%
+  mutate(hactiv7j = to_factor(hactiv7j)) %>% # Convertir en facteur
+  select(hactiv7j) %>% # Sélectionner la variable
+  tbl_summary(
+    missing = "always", # Afficher les valeurs manquantes
+    missing_text = "Valeurs manquantes"
+  ) %>%
+  modify_header(label ~ "**Taille de l'échantillon**") %>% 
+  as_gt() %>%  
+  gt::tab_header(title = "Activité des 7 derniers jours (EHCVM 2021)") %>% 
+  gt::tab_source_note(source_note = "Source : EHCVM 2021 (SEN)") %>% 
+  gt::tab_options(
+    heading.title.font.size = 16,
+    heading.title.font.weight = "bold"
+  )
+
+# Affichage des tableaux
+table_2018
+Activité des 7 derniers jours (EHCVM 2018)
+Taille de l’échantillon	N = 7,1561
+Activité 7 jours du CM	
+    Occupé	5,362 (75%)
+    Chômeur	44 (0.6%)
+    TF cherchant un emploi	3 (<0.1%)
+    TF ne cherchant pas un emploi	60 (0.8%)
+    Inactif	1,687 (24%)
+    Moins de 5 ans	0 (0%)
+    Valeurs manquantes	0
+Source : EHCVM 2018 (SEN)
+1 n (%)
+table_2021
+Activité des 7 derniers jours (EHCVM 2021)
+Taille de l’échantillon	N = 7,1201
+Activité 7 jours du CM	
+    Occupé	5,178 (73%)
+    Chômeur	5 (<0.1%)
+    TF cherchant un emploi	62 (0.9%)
+    TF ne cherchant pas un emploi	34 (0.5%)
+    Inactif	1,841 (26%)
+    Moins de 5 ans	0 (0%)
+    Valeurs manquantes	0
+Source : EHCVM 2021 (SEN)
+1 n (%)
+2.1.5 * Traitement de la variable “hcsp”
+####Visualisation de la distribution
+
+# Visualisation dans la base 2018
+table_2018 <- data_welf2018 %>%
+  mutate(hcsp = to_factor(hcsp)) %>% # Convertir en facteur
+  select(hcsp) %>% # Sélectionner la variable
+  tbl_summary(
+    missing = "always", # Afficher les valeurs manquantes
+    missing_text = "Valeurs manquantes"
+  ) %>%
+  modify_header(label ~ "**Taille de l'échantillon**") %>% 
+  as_gt() %>%  
+  gt::tab_header(title = "Catégorie socio-professionnelle du chef de ménage(EHCVM 2018)") %>% 
+  gt::tab_source_note(source_note = "Source : EHCVM 2018 (SEN)") %>% 
+  gt::tab_options(
+    heading.title.font.size = 16,
+    heading.title.font.weight = "bold"
+  )
+
+# Visualisation dans la base 2021
+table_2021 <- data_welf2021 %>%
+  mutate(hcsp = to_factor(hcsp)) %>% # Convertir en facteur
+  select(hcsp) %>% # Sélectionner la variable
+  tbl_summary(
+    missing = "always", # Afficher les valeurs manquantes
+    missing_text = "Valeurs manquantes"
+  ) %>%
+  modify_header(label ~ "**Taille de l'échantillon**") %>% 
+  as_gt() %>%  
+  gt::tab_header(title = "Catégorie socio-professionnelle du chef de ménage(EHCVM 2021)") %>% 
+  gt::tab_source_note(source_note = "Source : EHCVM 2021 (SEN)") %>% 
+  gt::tab_options(
+    heading.title.font.size = 16,
+    heading.title.font.weight = "bold"
+  )
+
+# Affichage des tableaux
+table_2018
+Catégorie socio-professionnelle du chef de ménage(EHCVM 2018)
+Taille de l’échantillon	N = 7,1561
+CSP du CM	
+    Cadre supérieur	107 (2.0%)
+    Cadre moyen/agent de maîtrise	315 (5.8%)
+    Ouvrier ou employé qualifié	389 (7.2%)
+    Ouvrier ou employé non qualifié	490 (9.0%)
+    Manœuvre, aide ménagère	153 (2.8%)
+    Stagiaire ou Apprenti rénuméré	35 (0.6%)
+    Stagiaire ou Apprenti non rénuméré	11 (0.2%)
+    Travailleur familial contribuant à une entreprise familiale	100 (1.8%)
+    Travailleur pour compte propre	3,691 (68%)
+    Patron	143 (2.6%)
+    Valeurs manquantes	1,722
+Source : EHCVM 2018 (SEN)
+1 n (%)
+table_2021
+Catégorie socio-professionnelle du chef de ménage(EHCVM 2021)
+Taille de l’échantillon	N = 7,1201
+CSP du CM	
+    Cadre supérieur	57 (1.0%)
+    Cadre moyen/agent de maîtrise	280 (4.8%)
+    Ouvrier ou employé qualifié	450 (7.8%)
+    Ouvrier ou employé non qualifié	332 (5.7%)
+    Manœuvre, aide ménagère	151 (2.6%)
+    Stagiaire ou Apprenti rénuméré	34 (0.6%)
+    Stagiaire ou Apprenti non rénuméré	3 (<0.1%)
+    Travailleur Familial contribuant pour une entreprise familial	66 (1.1%)
+    Travailleur pour compte propre	4,302 (74%)
+    Patron	119 (2.1%)
+    Valeurs manquantes	1,326
+Source : EHCVM 2021 (SEN)
+1 n (%)
+####Detection de l’incoherence Nous affichons les labels de la variales dans les deux bases pour voir l’incoherence
+
+cat("Labels de la variable 'hcsp' dans la base 2018 :\n")
+## Labels de la variable 'hcsp' dans la base 2018 :
+print(labelled::val_labels(data_welf2018$hcsp))
+##                                             Cadre supérieur 
+##                                                           1 
+##                               Cadre moyen/agent de maîtrise 
+##                                                           2 
+##                                 Ouvrier ou employé qualifié 
+##                                                           3 
+##                             Ouvrier ou employé non qualifié 
+##                                                           4 
+##                                     Manœuvre, aide ménagère 
+##                                                           5 
+##                              Stagiaire ou Apprenti rénuméré 
+##                                                           6 
+##                          Stagiaire ou Apprenti non rénuméré 
+##                                                           7 
+## Travailleur familial contribuant à une entreprise familiale 
+##                                                           8 
+##                              Travailleur pour compte propre 
+##                                                           9 
+##                                                      Patron 
+##                                                          10
+cat("\nLabels de la variable 'hcsp' dans la base 2021 :\n")
+## 
+## Labels de la variable 'hcsp' dans la base 2021 :
+print(labelled::val_labels(data_welf2021$hcsp))
+##                                               Cadre supérieur 
+##                                                             1 
+##                                 Cadre moyen/agent de maîtrise 
+##                                                             2 
+##                                   Ouvrier ou employé qualifié 
+##                                                             3 
+##                               Ouvrier ou employé non qualifié 
+##                                                             4 
+##                                       Manœuvre, aide ménagère 
+##                                                             5 
+##                                Stagiaire ou Apprenti rénuméré 
+##                                                             6 
+##                            Stagiaire ou Apprenti non rénuméré 
+##                                                             7 
+## Travailleur Familial contribuant pour une entreprise familial 
+##                                                             8 
+##                                Travailleur pour compte propre 
+##                                                             9 
+##                                                        Patron 
+##                                                            10
+Nous constatons don des incoherences des labels de la varaiable hnation dans les deux baeses.
+
+####Correction des incoherences Nous cosntatons que la variable a les memes codes dans les deux bases. Les incoherence se situent au niveau de l’orthographe des labels. Nous allons donc affecter les labels de la variable en 2021 a la variable en 2018
+
+val_labels(data_welf2018$hcsp) <-  val_labels(data_welf2021$hcsp)
+####Revisualisation de la distribution apres correction
+
+# Visualisation dans la base 2018
+table_2018 <- data_welf2018 %>%
+  mutate(hcsp = to_factor(hcsp)) %>% # Convertir en facteur
+  select(hcsp) %>% # Sélectionner la variable
+  tbl_summary(
+    missing = "always", # Afficher les valeurs manquantes
+    missing_text = "Valeurs manquantes"
+  ) %>%
+  modify_header(label ~ "**Taille de l'échantillon**") %>% 
+  as_gt() %>%  
+  gt::tab_header(title = "Catégorie socio-professionnelle du chef de ménage(EHCVM 2018)") %>% 
+  gt::tab_source_note(source_note = "Source : EHCVM 2018 (SEN)") %>% 
+  gt::tab_options(
+    heading.title.font.size = 16,
+    heading.title.font.weight = "bold"
+  )
+
+# Visualisation dans la base 2021
+table_2021 <- data_welf2021 %>%
+  mutate(hcsp = to_factor(hcsp)) %>% # Convertir en facteur
+  select(hcsp) %>% # Sélectionner la variable
+  tbl_summary(
+    missing = "always", # Afficher les valeurs manquantes
+    missing_text = "Valeurs manquantes"
+  ) %>%
+  modify_header(label ~ "**Taille de l'échantillon**") %>% 
+  as_gt() %>%  
+  gt::tab_header(title = "Catégorie socio-professionnelle du chef de ménage(EHCVM 2021)") %>% 
+  gt::tab_source_note(source_note = "Source : EHCVM 2021 (SEN)") %>% 
+  gt::tab_options(
+    heading.title.font.size = 16,
+    heading.title.font.weight = "bold"
+  )
+
+# Affichage des tableaux
+table_2018
+Catégorie socio-professionnelle du chef de ménage(EHCVM 2018)
+Taille de l’échantillon	N = 7,1561
+CSP du CM	
+    Cadre supérieur	107 (2.0%)
+    Cadre moyen/agent de maîtrise	315 (5.8%)
+    Ouvrier ou employé qualifié	389 (7.2%)
+    Ouvrier ou employé non qualifié	490 (9.0%)
+    Manœuvre, aide ménagère	153 (2.8%)
+    Stagiaire ou Apprenti rénuméré	35 (0.6%)
+    Stagiaire ou Apprenti non rénuméré	11 (0.2%)
+    Travailleur Familial contribuant pour une entreprise familial	100 (1.8%)
+    Travailleur pour compte propre	3,691 (68%)
+    Patron	143 (2.6%)
+    Valeurs manquantes	1,722
+Source : EHCVM 2018 (SEN)
+1 n (%)
+table_2021
+Catégorie socio-professionnelle du chef de ménage(EHCVM 2021)
+Taille de l’échantillon	N = 7,1201
+CSP du CM	
+    Cadre supérieur	57 (1.0%)
+    Cadre moyen/agent de maîtrise	280 (4.8%)
+    Ouvrier ou employé qualifié	450 (7.8%)
+    Ouvrier ou employé non qualifié	332 (5.7%)
+    Manœuvre, aide ménagère	151 (2.6%)
+    Stagiaire ou Apprenti rénuméré	34 (0.6%)
+    Stagiaire ou Apprenti non rénuméré	3 (<0.1%)
+    Travailleur Familial contribuant pour une entreprise familial	66 (1.1%)
+    Travailleur pour compte propre	4,302 (74%)
+    Patron	119 (2.1%)
+    Valeurs manquantes	1,326
+Source : EHCVM 2021 (SEN)
+1 n (%)
+2.1.6 * Traitement de la variable “hbranch”
+2.1.6.1 Visualisation de la distribution
+# Visualisation dans la base 2018
+table_2018 <- data_welf2018 %>%
+  mutate(hbranch = to_factor(hbranch)) %>% # Convertir en facteur
+  select(hbranch) %>% # Sélectionner la variable
+  tbl_summary(
+    missing = "always", # Afficher les valeurs manquantes
+    missing_text = "Valeurs manquantes"
+  ) %>%
+  modify_header(label ~ "**Taille de l'échantillon**") %>% 
+  as_gt() %>%  
+  gt::tab_header(title = "Branche d'activité du chef de ménage (EHCVM 2018)") %>% 
+  gt::tab_source_note(source_note = "Source : EHCVM 2018 (SEN)") %>% 
+  gt::tab_options(
+    heading.title.font.size = 16,
+    heading.title.font.weight = "bold"
+  )
+
+# Visualisation dans la base 2021
+table_2021 <- data_welf2021 %>%
+  mutate(hbranch = to_factor(hbranch)) %>% # Convertir en facteur
+  select(hbranch) %>% # Sélectionner la variable
+  tbl_summary(
+    missing = "always", # Afficher les valeurs manquantes
+    missing_text = "Valeurs manquantes"
+  ) %>%
+  modify_header(label ~ "**Taille de l'échantillon**") %>% 
+  as_gt() %>%  
+  gt::tab_header(title = "Branche d'activité du chef de ménage (EHCVM 2021)") %>% 
+  gt::tab_source_note(source_note = "Source : EHCVM 2021 (SEN)") %>% 
+  gt::tab_options(
+    heading.title.font.size = 16,
+    heading.title.font.weight = "bold"
+  )
+
+# Affichage des tableaux
+table_2018
+Branche d'activité du chef de ménage (EHCVM 2018)
+Taille de l’échantillon	N = 7,1561
+Branche activite du CM	
+    Agriculture	1,366 (25%)
+    Elevage/peche	374 (6.9%)
+    Indust. extr.	58 (1.1%)
+    Autr. indust.	497 (9.1%)
+    BTP	313 (5.8%)
+    Commerce	1,094 (20%)
+    Restaurant/Hotel	63 (1.2%)
+    Trans./Comm.	251 (4.6%)
+    Education/Sante	379 (7.0%)
+    Services perso.	761 (14%)
+    Aut. services	278 (5.1%)
+    Valeurs manquantes	1,722
+Source : EHCVM 2018 (SEN)
+1 n (%)
+table_2021
+Branche d'activité du chef de ménage (EHCVM 2021)
+Taille de l’échantillon	N = 7,1201
+Branche activite du CM	
+    Agriculture	1,363 (26%)
+    Elevage/syl./peche	523 (9.9%)
+    Indust. extr.	70 (1.3%)
+    Autr. indust.	643 (12%)
+    btp	361 (6.8%)
+    Commerce	904 (17%)
+    Restaurant/Hotel	75 (1.4%)
+    Trans./Comm.	296 (5.6%)
+    Education/Sante	421 (8.0%)
+    Services perso.	262 (5.0%)
+    Aut. services	354 (6.7%)
+    34	1 (<0.1%)
+    502	1 (<0.1%)
+    930	8 (0.2%)
+    Valeurs manquantes	1,838
+Source : EHCVM 2021 (SEN)
+1 n (%)
+####Detection de l’incoherence Nous affichons les labels de la variales dans les deux bases pour voir l’incoherence
+
+cat("Labels de la variable 'hbranch' dans la base 2018 :\n")
+## Labels de la variable 'hbranch' dans la base 2018 :
+print(labelled::val_labels(data_welf2018$hbranch))
+##      Agriculture    Elevage/peche    Indust. extr.    Autr. indust. 
+##                1                2                3                4 
+##              BTP         Commerce Restaurant/Hotel     Trans./Comm. 
+##                5                6                7                8 
+##  Education/Sante  Services perso.    Aut. services 
+##                9               10               11
+cat("\nLabels de la variable 'hbranch' dans la base 2021 :\n")
+## 
+## Labels de la variable 'hbranch' dans la base 2021 :
+print(labelled::val_labels(data_welf2021$hbranch))
+##        Agriculture Elevage/syl./peche      Indust. extr.      Autr. indust. 
+##                  1                  2                  3                  4 
+##                btp           Commerce   Restaurant/Hotel       Trans./Comm. 
+##                  5                  6                  7                  8 
+##    Education/Sante    Services perso.      Aut. services 
+##                  9                 10                 11
+Nous constatons don des incoherences des labels de la varaiable hnation dans les deux baeses.
+
+Nous cosntatons que la variable est codée de la meme manière dans les deux bases. Les incoherences se situent au niveau de l’orthographe des labels. Nous allons donc affecter les labels de la variable en 2021 a la variable en 2018
+
+val_labels(data_welf2018$hbranch) <-  val_labels(data_welf2021$hbranch)
+####Revisualisation de la distribution apres correction
+
+# Visualisation dans la base 2018
+table_2018 <- data_welf2018 %>%
+  mutate(hbranch = to_factor(hbranch)) %>% # Convertir en facteur
+  select(hbranch) %>% # Sélectionner la variable
+  tbl_summary(
+    missing = "always", # Afficher les valeurs manquantes
+    missing_text = "Valeurs manquantes"
+  ) %>%
+  modify_header(label ~ "**Taille de l'échantillon**") %>% 
+  as_gt() %>%  
+  gt::tab_header(title = "Branche d'activité du chef de ménage (EHCVM 2018)") %>% 
+  gt::tab_source_note(source_note = "Source : EHCVM 2018 (SEN)") %>% 
+  gt::tab_options(
+    heading.title.font.size = 16,
+    heading.title.font.weight = "bold"
+  )
+
+# Visualisation dans la base 2021
+table_2021 <- data_welf2021 %>%
+  mutate(hbranch = to_factor(hbranch)) %>% # Convertir en facteur
+  select(hbranch) %>% # Sélectionner la variable
+  tbl_summary(
+    missing = "always", # Afficher les valeurs manquantes
+    missing_text = "Valeurs manquantes"
+  ) %>%
+  modify_header(label ~ "**Taille de l'échantillon**") %>% 
+  as_gt() %>%  
+  gt::tab_header(title = "Branche d'activité du chef de ménage (EHCVM 2021)") %>% 
+  gt::tab_source_note(source_note = "Source : EHCVM 2021 (SEN)") %>% 
+  gt::tab_options(
+    heading.title.font.size = 16,
+    heading.title.font.weight = "bold"
+  )
+
+# Affichage des tableaux
+table_2018
+Branche d'activité du chef de ménage (EHCVM 2018)
+Taille de l’échantillon	N = 7,1561
+Branche activite du CM	
+    Agriculture	1,366 (25%)
+    Elevage/syl./peche	374 (6.9%)
+    Indust. extr.	58 (1.1%)
+    Autr. indust.	497 (9.1%)
+    btp	313 (5.8%)
+    Commerce	1,094 (20%)
+    Restaurant/Hotel	63 (1.2%)
+    Trans./Comm.	251 (4.6%)
+    Education/Sante	379 (7.0%)
+    Services perso.	761 (14%)
+    Aut. services	278 (5.1%)
+    Valeurs manquantes	1,722
+Source : EHCVM 2018 (SEN)
+1 n (%)
+table_2021
+Branche d'activité du chef de ménage (EHCVM 2021)
+Taille de l’échantillon	N = 7,1201
+Branche activite du CM	
+    Agriculture	1,363 (26%)
+    Elevage/syl./peche	523 (9.9%)
+    Indust. extr.	70 (1.3%)
+    Autr. indust.	643 (12%)
+    btp	361 (6.8%)
+    Commerce	904 (17%)
+    Restaurant/Hotel	75 (1.4%)
+    Trans./Comm.	296 (5.6%)
+    Education/Sante	421 (8.0%)
+    Services perso.	262 (5.0%)
+    Aut. services	354 (6.7%)
+    34	1 (<0.1%)
+    502	1 (<0.1%)
+    930	8 (0.2%)
+    Valeurs manquantes	1,838
+Source : EHCVM 2021 (SEN)
+1 n (%)
+2.1.7 * Traitement de la variable “region”
+####Visualisation de la distribution
+
+# Visualisation dans la base 2018
+table_2018 <- data_welf2018 %>%
+  mutate(region = to_factor(region)) %>% # Convertir en facteur
+  select(region) %>% # Sélectionner la variable
+  tbl_summary(
+    missing = "always", # Afficher les valeurs manquantes
+    missing_text = "Valeurs manquantes"
+  ) %>%
+  modify_header(label ~ "**Taille de l'échantillon**") %>% 
+  as_gt() %>%  
+  gt::tab_header(title = "Région de résidence du chef de ménage (EHCVM 2018)") %>% 
+  gt::tab_source_note(source_note = "Source : EHCVM 2018 (SEN)") %>% 
+  gt::tab_options(
+    heading.title.font.size = 16,
+    heading.title.font.weight = "bold"
+  )
+
+# Visualisation dans la base 2021
+table_2021 <- data_welf2021 %>%
+  mutate(region = to_factor(region)) %>% # Convertir en facteur
+  select(region) %>% # Sélectionner la variable
+  tbl_summary(
+    missing = "always", # Afficher les valeurs manquantes
+    missing_text = "Valeurs manquantes"
+  ) %>%
+  modify_header(label ~ "**Taille de l'échantillon**") %>% 
+  as_gt() %>%  
+  gt::tab_header(title = "Région de résidence du chef de ménage (EHCVM 2021)") %>% 
+  gt::tab_source_note(source_note = "Source : EHCVM 2021 (SEN)") %>% 
+  gt::tab_options(
+    heading.title.font.size = 16,
+    heading.title.font.weight = "bold"
+  )
+
+# Affichage des tableaux
+table_2018
+Région de résidence du chef de ménage (EHCVM 2018)
+Taille de l’échantillon	N = 7,1561
+Region residence	
+    DAKAR	1,020 (14%)
+    ZIGUINCHOR	480 (6.7%)
+    DIOURBEL	552 (7.7%)
+    SAINT-LOUIS	504 (7.0%)
+    TAMBACOUNDA	432 (6.0%)
+    KAOLACK	528 (7.4%)
+    THIES	570 (8.0%)
+    LOUGA	480 (6.7%)
+    FATICK	455 (6.4%)
+    KOLDA	432 (6.0%)
+    MATAM	408 (5.7%)
+    KAFFRINE	431 (6.0%)
+    KEDOUGOU	456 (6.4%)
+    SEDHIOU	408 (5.7%)
+    Valeurs manquantes	0
+Source : EHCVM 2018 (SEN)
+1 n (%)
+table_2021
+Région de résidence du chef de ménage (EHCVM 2021)
+Taille de l’échantillon	N = 7,1201
+Region residence	
+    dakar	1,005 (14%)
+    ziguinchor	468 (6.6%)
+    diourbel	552 (7.8%)
+    SAINT-LOUIS	503 (7.1%)
+    tambacounda	432 (6.1%)
+    kaolack	526 (7.4%)
+    thies	567 (8.0%)
+    louga	480 (6.7%)
+    fatick	455 (6.4%)
+    kolda	432 (6.1%)
+    matam	408 (5.7%)
+    kaffrine	432 (6.1%)
+    kedougou	452 (6.3%)
+    sedhiou	408 (5.7%)
+    Valeurs manquantes	0
+Source : EHCVM 2021 (SEN)
+1 n (%)
+####Detection de l’incoherence Nous affichons les labels de la variales dans les deux bases pour voir l’incoherence
+
+cat("Labels de la variable 'region' dans la base 2018 :\n")
+## Labels de la variable 'region' dans la base 2018 :
+print(labelled::val_labels(data_welf2018$region))
+##       DAKAR  ZIGUINCHOR    DIOURBEL SAINT-LOUIS TAMBACOUNDA     KAOLACK 
+##           1           2           3           4           5           6 
+##       THIES       LOUGA      FATICK       KOLDA       MATAM    KAFFRINE 
+##           7           8           9          10          11          12 
+##    KEDOUGOU     SEDHIOU 
+##          13          14
+cat("\nLabels de la variable 'region' dans la base 2021 :\n")
+## 
+## Labels de la variable 'region' dans la base 2021 :
+print(labelled::val_labels(data_welf2021$region))
+##       dakar  ziguinchor    diourbel SAINT-LOUIS tambacounda     kaolack 
+##           1           2           3           4           5           6 
+##       thies       louga      fatick       kolda       matam    kaffrine 
+##           7           8           9          10          11          12 
+##    kedougou     sedhiou 
+##          13          14
+Nous constatons don des incoherences des labels de la varaiable hnation dans les deux bases.
+
+####Correction des incoherences Nous cosntatons que la variable est codée de la meme manière dans les deux bases. Les incoherences se situent au niveau de l’orthographe des labels. Nous allons donc affecter les labels de la variable en 2018 a la variable en 2021
+
+val_labels(data_welf2021$region) <-  val_labels(data_welf2018$region)
+####Revisualisation de la distribution apres correction
+
+# Visualisation dans la base 2018
+table_2018 <- data_welf2018 %>%
+  mutate(region = to_factor(region)) %>% # Convertir en facteur
+  select(region) %>% # Sélectionner la variable
+  tbl_summary(
+    missing = "always", # Afficher les valeurs manquantes
+    missing_text = "Valeurs manquantes"
+  ) %>%
+  modify_header(label ~ "**Taille de l'échantillon**") %>% 
+  as_gt() %>%  
+  gt::tab_header(title = "Région de résidence du chef de ménage (EHCVM 2018)") %>% 
+  gt::tab_source_note(source_note = "Source : EHCVM 2018 (SEN)") %>% 
+  gt::tab_options(
+    heading.title.font.size = 16,
+    heading.title.font.weight = "bold"
+  )
+
+# Visualisation dans la base 2021
+table_2021 <- data_welf2021 %>%
+  mutate(region = to_factor(region)) %>% # Convertir en facteur
+  select(region) %>% # Sélectionner la variable
+  tbl_summary(
+    missing = "always", # Afficher les valeurs manquantes
+    missing_text = "Valeurs manquantes"
+  ) %>%
+  modify_header(label ~ "**Taille de l'échantillon**") %>% 
+  as_gt() %>%  
+  gt::tab_header(title = "Région de résidence du chef de ménage (EHCVM 2021)") %>% 
+  gt::tab_source_note(source_note = "Source : EHCVM 2021 (SEN)") %>% 
+  gt::tab_options(
+    heading.title.font.size = 16,
+    heading.title.font.weight = "bold"
+  )
+
+# Affichage des tableaux
+table_2018
+Région de résidence du chef de ménage (EHCVM 2018)
+Taille de l’échantillon	N = 7,1561
+Region residence	
+    DAKAR	1,020 (14%)
+    ZIGUINCHOR	480 (6.7%)
+    DIOURBEL	552 (7.7%)
+    SAINT-LOUIS	504 (7.0%)
+    TAMBACOUNDA	432 (6.0%)
+    KAOLACK	528 (7.4%)
+    THIES	570 (8.0%)
+    LOUGA	480 (6.7%)
+    FATICK	455 (6.4%)
+    KOLDA	432 (6.0%)
+    MATAM	408 (5.7%)
+    KAFFRINE	431 (6.0%)
+    KEDOUGOU	456 (6.4%)
+    SEDHIOU	408 (5.7%)
+    Valeurs manquantes	0
+Source : EHCVM 2018 (SEN)
+1 n (%)
+table_2021
+Région de résidence du chef de ménage (EHCVM 2021)
+Taille de l’échantillon	N = 7,1201
+Region residence	
+    DAKAR	1,005 (14%)
+    ZIGUINCHOR	468 (6.6%)
+    DIOURBEL	552 (7.8%)
+    SAINT-LOUIS	503 (7.1%)
+    TAMBACOUNDA	432 (6.1%)
+    KAOLACK	526 (7.4%)
+    THIES	567 (8.0%)
+    LOUGA	480 (6.7%)
+    FATICK	455 (6.4%)
+    KOLDA	432 (6.1%)
+    MATAM	408 (5.7%)
+    KAFFRINE	432 (6.1%)
+    KEDOUGOU	452 (6.3%)
+    SEDHIOU	408 (5.7%)
+    Valeurs manquantes	0
+Source : EHCVM 2021 (SEN)
+1 n (%)
+####Verifions les labels et le recodage apres l’harmonisation des vaeriables qui n’etaient pas conforme dans les deux bases
+
+variables_problemes <- c("zae", "region", "hnation", "hdiploma", "hactiv7j", "hbranch", "hcsp")
+
+for (var in variables_problemes) {
+  cat("Variable :", var, "\n")
+  cat("Labels 2018 :\n")
+  print(labelled::val_labels(data_welf2018[[var]]))
+  cat("\nLabels 2021 :\n")
+  print(labelled::val_labels(data_welf2021[[var]]))
+  cat("\n------------------------------------\n")
+}
+## Variable : zae 
+## Labels 2018 :
+##                       Kédougou              Saint-Louis-Matam 
+##                              1                              3 
+##           Thies-Diourbel-Louga        Kaolack-Fatick-Kaffrine 
+##                              5                              7 
+## Ziguinchor-Tamba-Kolda-Sédhiou                          Dakar 
+##                              9                             11 
+## 
+## Labels 2021 :
+##                       Kédougou              Saint-Louis-Matam 
+##                              1                              3 
+##           Thies-Diourbel-Louga        Kaolack-Fatick-Kaffrine 
+##                              5                              7 
+## Ziguinchor-Tamba-Kolda-Sédhiou                          Dakar 
+##                              9                             11 
+## 
+## ------------------------------------
+## Variable : region 
+## Labels 2018 :
+##       DAKAR  ZIGUINCHOR    DIOURBEL SAINT-LOUIS TAMBACOUNDA     KAOLACK 
+##           1           2           3           4           5           6 
+##       THIES       LOUGA      FATICK       KOLDA       MATAM    KAFFRINE 
+##           7           8           9          10          11          12 
+##    KEDOUGOU     SEDHIOU 
+##          13          14 
+## 
+## Labels 2021 :
+##       DAKAR  ZIGUINCHOR    DIOURBEL SAINT-LOUIS TAMBACOUNDA     KAOLACK 
+##           1           2           3           4           5           6 
+##       THIES       LOUGA      FATICK       KOLDA       MATAM    KAFFRINE 
+##           7           8           9          10          11          12 
+##    KEDOUGOU     SEDHIOU 
+##          13          14 
+## 
+## ------------------------------------
+## Variable : hnation 
+## Labels 2018 :
+##                   Benin            Burkina Faso           Côte d'Ivoire 
+##                       1                       2                       3 
+##           Guinée Bissau                    Mali                   Niger 
+##                       4                       5                       6 
+##                 Sénégal                    Togo                 Nigéria 
+##                       7                       8                       9 
+##            Autre CEDEAO           Autre Afrique Autre pays hors Afrique 
+##                      10                      11                      12 
+## 
+## Labels 2021 :
+##                   Benin            Burkina Faso           Côte d'Ivoire 
+##                       1                       2                       3 
+##           Guinée Bissau                    Mali                   Niger 
+##                       4                       5                       6 
+##                 Sénégal                    Togo                 Nigéria 
+##                       7                       8                       9 
+##            Autre CEDEAO           Autre Afrique Autre pays hors Afrique 
+##                      10                      11                      12 
+## 
+## ------------------------------------
+## Variable : hdiploma 
+## Labels 2018 :
+##           Aucun            CEPE            BEPC             CAP              BT 
+##               0               1               2               3               4 
+##             BAC    DEUG/DUT/BTS         Licence        Maitrise Master/DEA/DESS 
+##               5               6               7               8               9 
+##    Doctorat/PHD 
+##              10 
+## 
+## Labels 2021 :
+##           Aucun            CEPE            BEPC             CAP              BT 
+##               0               1               2               3               4 
+##             BAC    DEUG/DUT/BTS         Licence        Maitrise Master/DEA/DESS 
+##               5               6               7               8               9 
+##    Doctorat/PHD 
+##              10 
+## 
+## ------------------------------------
+## Variable : hactiv7j 
+## Labels 2018 :
+##                        Occupé                       Chômeur 
+##                             1                             2 
+##        TF cherchant un emploi TF ne cherchant pas un emploi 
+##                             3                             4 
+##                       Inactif                Moins de 5 ans 
+##                             5                             6 
+## 
+## Labels 2021 :
+##                        Occupé                       Chômeur 
+##                             1                             2 
+##        TF cherchant un emploi TF ne cherchant pas un emploi 
+##                             3                             4 
+##                       Inactif                Moins de 5 ans 
+##                             5                             6 
+## 
+## ------------------------------------
+## Variable : hbranch 
+## Labels 2018 :
+##        Agriculture Elevage/syl./peche      Indust. extr.      Autr. indust. 
+##                  1                  2                  3                  4 
+##                btp           Commerce   Restaurant/Hotel       Trans./Comm. 
+##                  5                  6                  7                  8 
+##    Education/Sante    Services perso.      Aut. services 
+##                  9                 10                 11 
+## 
+## Labels 2021 :
+##        Agriculture Elevage/syl./peche      Indust. extr.      Autr. indust. 
+##                  1                  2                  3                  4 
+##                btp           Commerce   Restaurant/Hotel       Trans./Comm. 
+##                  5                  6                  7                  8 
+##    Education/Sante    Services perso.      Aut. services 
+##                  9                 10                 11 
+## 
+## ------------------------------------
+## Variable : hcsp 
+## Labels 2018 :
+##                                               Cadre supérieur 
+##                                                             1 
+##                                 Cadre moyen/agent de maîtrise 
+##                                                             2 
+##                                   Ouvrier ou employé qualifié 
+##                                                             3 
+##                               Ouvrier ou employé non qualifié 
+##                                                             4 
+##                                       Manœuvre, aide ménagère 
+##                                                             5 
+##                                Stagiaire ou Apprenti rénuméré 
+##                                                             6 
+##                            Stagiaire ou Apprenti non rénuméré 
+##                                                             7 
+## Travailleur Familial contribuant pour une entreprise familial 
+##                                                             8 
+##                                Travailleur pour compte propre 
+##                                                             9 
+##                                                        Patron 
+##                                                            10 
+## 
+## Labels 2021 :
+##                                               Cadre supérieur 
+##                                                             1 
+##                                 Cadre moyen/agent de maîtrise 
+##                                                             2 
+##                                   Ouvrier ou employé qualifié 
+##                                                             3 
+##                               Ouvrier ou employé non qualifié 
+##                                                             4 
+##                                       Manœuvre, aide ménagère 
+##                                                             5 
+##                                Stagiaire ou Apprenti rénuméré 
+##                                                             6 
+##                            Stagiaire ou Apprenti non rénuméré 
+##                                                             7 
+## Travailleur Familial contribuant pour une entreprise familial 
+##                                                             8 
+##                                Travailleur pour compte propre 
+##                                                             9 
+##                                                        Patron 
+##                                                            10 
+## 
+## ------------------------------------
+####Verifionsompare les labels des variables, les labels des valeurs et les types des variables entre deux bases de donnée
+
+#Fonction qui compare les labels des variables, les labels des valeurs et les types des variables entre les deux bases
+
+compare_data <- function(df1, df2) {
+  vars_com <- intersect(names(df1), names(df2))
+  different_labels <- list()
+  var_diff_labels <- list()
+  type_diff <- list()
+  
+  for (var in vars_com) {
+    # 🔹 Comparaison des labels des variables
+    label1 <- attr(df1[[var]], "label")
+    label2 <- attr(df2[[var]], "label")
+    
+    if (!identical(label1, label2)) {
+      different_labels[[var]] <- list("Label 2018" = label1, "Label 2021" = label2)
+    }
+    
+    # 🔹 Comparaison des labels des valeurs des variables labellisées
+    labels_2018 <- if (labelled::is.labelled(df1[[var]])) labelled::val_labels(df1[[var]]) else NULL
+    labels_2021 <- if (labelled::is.labelled(df2[[var]])) labelled::val_labels(df2[[var]]) else NULL
+    
+    if (!identical(labels_2018, labels_2021)) {
+      var_diff_labels[[var]] <- list("Labels 2018" = labels_2018, "Labels 2021" = labels_2021)
+    }
+    
+    # 🔹 Comparaison des types des variables
+    type1 <- class(df1[[var]])
+    type2 <- class(df2[[var]])
+    
+    if (!identical(type1, type2)) {
+      type_diff[[var]] <- list("Type 2018" = type1, "Type 2021" = type2)
+    }
+  }
+  
+  # 🔥 Affichage des résultats
+  if (length(different_labels) == 0) {
+    print("✅ Les labels des variables sont identiques entre 2018 et 2021.")
+  } else {
+    print("⚠️ Labels des variables différents :")
+    print(different_labels)
+  }
+  
+  if (length(var_diff_labels) == 0) {
+    print("✅ Les labels des valeurs sont identiques entre 2018 et 2021.")
+  } else {
+    print("⚠️ Labels des valeurs différents :")
+    print(var_diff_labels)
+  }
+  
+  if (length(type_diff) == 0) {
+    print("✅ Les types de variables sont identiques entre 2018 et 2021.")
+  } else {
+    print("⚠️ Variables avec des types différents :")
+    print(type_diff)
+  }
+}
+####Appel de la fonction
+
+compare_data(data_welf2018, data_welf2021)
+## [1] "⚠️ Labels des variables différents :"
+## $grappe
+## $grappe$`Label 2018`
+## [1] "Numero grappe"
+## 
+## $grappe$`Label 2021`
+## [1] "grappe"
+## 
+## 
+## $menage
+## $menage$`Label 2018`
+## [1] "Numero menage"
+## 
+## $menage$`Label 2021`
+## [1] "Identifiant du ménage"
+## 
+## 
+## [1] "✅ Les labels des valeurs sont identiques entre 2018 et 2021."
+## [1] "✅ Les types de variables sont identiques entre 2018 et 2021."
+Apres execution du code ci-desssous nosu constatons que les labels des variables “grappe” et “menage ne sont pas les memes dans les deux bases. Nous allons donc les harmoniser.
+
+####** Harmonisation des labels
+
+# Définir les labels corrects et cohérents entre les deux bases
+var_labels <- c(
+  "grappe" = "Numéro grappe",
+  "menage" = "Numéro ménage"
+)
+
+# Appliquer les labels à la base 2018
+for (var in names(var_labels)) {
+  attr(data_welf2018[[var]], "label") <- var_labels[var]
+}
+
+# Appliquer les labels à la base 2021
+for (var in names(var_labels)) {
+  attr(data_welf2021[[var]], "label") <- var_labels[var]
+}
+3 Fusion des deux bases
+# Empiler les deux bases après harmonisation
+data_welf_final18_21 <- dplyr::bind_rows(data_welf2018, data_welf2021)
+data_welf_final18_21
+## # A tibble: 14,276 × 48
+##    country  year  hhid grappe menage vague zae        region    milieu  hhweight
+##    <chr>   <dbl> <dbl>  <dbl>  <dbl> <dbl> <dbl+lbl>  <dbl+lbl> <dbl+l>    <dbl>
+##  1 SEN      2018  1001      1      1     1 11 [Dakar] 1 [DAKAR] 1 [Urb…    1750.
+##  2 SEN      2018  1002      1      2     1 11 [Dakar] 1 [DAKAR] 1 [Urb…    1750.
+##  3 SEN      2018  1003      1      3     1 11 [Dakar] 1 [DAKAR] 1 [Urb…    1750.
+##  4 SEN      2018  2001      2      1     2 11 [Dakar] 1 [DAKAR] 1 [Urb…     266.
+##  5 SEN      2018  2002      2      2     2 11 [Dakar] 1 [DAKAR] 1 [Urb…     266.
+##  6 SEN      2018  2003      2      3     2 11 [Dakar] 1 [DAKAR] 1 [Urb…     266.
+##  7 SEN      2018  2004      2      4     2 11 [Dakar] 1 [DAKAR] 1 [Urb…     266.
+##  8 SEN      2018  2005      2      5     2 11 [Dakar] 1 [DAKAR] 1 [Urb…     266.
+##  9 SEN      2018  2006      2      6     2 11 [Dakar] 1 [DAKAR] 1 [Urb…     266.
+## 10 SEN      2018  2007      2      7     2 11 [Dakar] 1 [DAKAR] 1 [Urb…     266.
+## # ℹ 14,266 more rows
+## # ℹ 38 more variables: hhsize <dbl>, eqadu1 <dbl>, eqadu2 <dbl>,
+## #   hgender <dbl+lbl>, hage <dbl>, hmstat <dbl+lbl>, hreligion <dbl+lbl>,
+## #   hnation <dbl+lbl>, halfab <dbl+lbl>, heduc <dbl+lbl>, hdiploma <dbl+lbl>,
+## #   hhandig <dbl+lbl>, hactiv7j <dbl+lbl>, hactiv12m <dbl+lbl>,
+## #   hbranch <dbl+lbl>, hsectins <dbl+lbl>, hcsp <dbl+lbl>, dali <dbl>,
+## #   dnal <dbl>, dtot <dbl>, pcexp <dbl>, zzae <dbl>, zref <dbl>, …
+3.1 Quelques statistiques sur la base final
+data_welf_final18_21 %>%    
+  to_factor() %>%  # Conversion des variables haven_labelled en facteurs
+  select(year, hage, hgender, hdiploma, hcsp, dtot, dali, halfab) %>% 
+  tbl_summary(
+    by= year,
+    digits = list(hage~ 0, dtot~0, dali~0 ), # Affichage sans décimales pour l'âge, dtot et dali
+    missing = "always",
+    missing_text = "Valeurs manquantes"
+  ) %>% 
+  modify_header(label ~ "**Taille des échantillons**") %>% 
+  as_gt() %>%
+  gt::tab_header(title = "Statistiques sur certaines variables après fusion") %>% 
+  gt::tab_source_note(source_note = "Source : EHCVM 2018 et 2021 (SEN)") %>%
+  gt::tab_options(
+    heading.title.font.size = 20,
+    heading.title.font.weight = "bold"
+  )
+Statistiques sur certaines variables après fusion
+Taille des échantillons	2018
+N = 7,1561	2021
+N = 7,1201
+hage	51 (41, 62)	54 (44, 64)
+    Valeurs manquantes	0	0
+Genre du CM	
+
+    Masculin	5,280 (74%)	5,095 (72%)
+    Féminin	1,876 (26%)	2,025 (28%)
+    Valeurs manquantes	0	0
+Diplôme du chef de ménage	
+
+    Aucun	5,697 (80%)	5,772 (81%)
+    CEPE	587 (8.2%)	583 (8.2%)
+    BEPC	359 (5.0%)	317 (4.5%)
+    CAP	52 (0.7%)	39 (0.5%)
+    BT	16 (0.2%)	7 (<0.1%)
+    BAC	154 (2.2%)	150 (2.1%)
+    DEUG/DUT/BTS	49 (0.7%)	46 (0.6%)
+    Licence	83 (1.2%)	101 (1.4%)
+    Maitrise	63 (0.9%)	55 (0.8%)
+    Master/DEA/DESS	65 (0.9%)	32 (0.4%)
+    Doctorat/PHD	31 (0.4%)	18 (0.3%)
+    Valeurs manquantes	0	0
+CSP du CM	
+
+    Cadre supérieur	107 (2.0%)	57 (1.0%)
+    Cadre moyen/agent de maîtrise	315 (5.8%)	280 (4.8%)
+    Ouvrier ou employé qualifié	389 (7.2%)	450 (7.8%)
+    Ouvrier ou employé non qualifié	490 (9.0%)	332 (5.7%)
+    Manœuvre, aide ménagère	153 (2.8%)	151 (2.6%)
+    Stagiaire ou Apprenti rénuméré	35 (0.6%)	34 (0.6%)
+    Stagiaire ou Apprenti non rénuméré	11 (0.2%)	3 (<0.1%)
+    Travailleur Familial contribuant pour une entreprise familial	100 (1.8%)	66 (1.1%)
+    Travailleur pour compte propre	3,691 (68%)	4,302 (74%)
+    Patron	143 (2.6%)	119 (2.1%)
+    Valeurs manquantes	1,722	1,326
+dtot	3,484,846 (2,268,658, 5,392,276)	3,614,746 (2,431,415, 5,359,291)
+    Valeurs manquantes	0	0
+dali	1,746,986 (1,143,473, 2,575,869)	1,956,762 (1,325,372, 2,840,297)
+    Valeurs manquantes	0	0
+Alphabetisation du CM	
+
+    Non	3,788 (53%)	0 (NA%)
+    Oui	3,368 (47%)	0 (NA%)
+    Valeurs manquantes	0	7,120
+Source : EHCVM 2018 et 2021 (SEN)
+1 Median (Q1, Q3); n (%)
+3.2 Sauvegarde de la base final
+# Sauvegarde au format Stata
+write_dta(data_welf_final18_21, "data_welf_final18_21.dta")
